@@ -6,12 +6,6 @@ import { fetchGames, fetchGame, getSession, loginUser, registerUser, logoutUser 
 // The finished prototype reads games from MySQL through PHP endpoints.
 const sampleGames = [
   {
-    id: 1, title: 'GTA 6', genre: 'Action', rating: 5.0,
-    image: '/assets/gta-6.jpg', tags: ['Action', 'Open World'],
-    description: 'Explore an open world with action-packed missions and new characters.',
-    developer: 'Rockstar Games', publisher: 'Rockstar Games', release: 'To be confirmed', platforms: 'To be added'
-  },
-  {
     id: 2, title: 'League of Legends', genre: 'Strategy', rating: 4.6,
     image: '/assets/league-of-legends.jpg', tags: ['Strategy', 'MOBA', 'Multiplayer'],
     description: "League of Legends is a multiplayer online, fast-paced strategy game where two teams of five players fight to destroy the enemy's main base.",
@@ -378,7 +372,6 @@ function App() {
                 </div>
                 {dataMode === 'loading' && <p className="source-status" role="status">Checking game API...</p>}
                 {dataMode === 'demo' && <p className="source-status" role="status">Demo data — API not connected. {dataError}</p>}
-                {dataMode === 'live' && <p className="source-status source-live" role="status">Games loaded from API — database to be verified</p>}
                 {displayedGames.length > 0 ? (
                   <div className="game-grid">
                     {displayedGames.map(game => (
