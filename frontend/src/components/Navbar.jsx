@@ -20,7 +20,7 @@ export default function Navbar({ user, games, genres, favouriteCount, routeName,
     <header className="navbar">
       <div className="wrap navbar-inner">
         <a className="brand" href="#home" aria-label="DPRate home">
-          <img src="/assets/dprate-logo.png" alt="DPRate" width="208" height="52" />
+          <img src="/assets/dprate-wordmark.png" alt="DPRate" width="208" height="52" />
         </a>
 
         <nav className="nav-main" aria-label="Main">

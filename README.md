@@ -6,7 +6,8 @@ reviews, keep a list of favourites and manage their account.
 
 INT1059 Advanced Web, Assessment 3. Team Guava: Davi Rocha (15617) and Pedro Meloni (15191).
 
-- Live site: _add the InfinityFree address here after deployment_
+- Live site: https://dprate.gamer.gd (free InfinityFree hosting; the first visit can take a few seconds while the host checks the browser)
+- Demo login for the marker: given on the cover page of the report (or register a new account on the site)
 - Repository: https://github.com/DarokiCode/DPRate
 
 ## Features

@@ -4,7 +4,7 @@ export default function Footer({ genres, user }) {
       <div className="wrap">
         <div className="footer-top">
           <div className="footer-brand">
-            <img src="/assets/dprate-logo.png" alt="DPRate" width="208" height="52" />
+            <img src="/assets/dprate-wordmark.png" alt="DPRate" width="208" height="52" />
             <p>Honest ratings from players, not critics. Find your next game, then tell everyone what you thought of it.</p>
           </div>
           <nav className="footer-links" aria-label="Footer">
