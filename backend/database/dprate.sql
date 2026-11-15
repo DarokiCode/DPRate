@@ -1,16 +1,13 @@
--- DPRate database: structure and sample data (SQL dump for Assessment 2)
--- Import with phpMyAdmin (XAMPP: Import tab) or from the command line:
+-- DPRate database: full structure and data (Assessment 3).
+-- Fresh install only. Import with phpMyAdmin (Import tab) or from the command line:
 --   mysql -u root -p < backend/database/dprate.sql
+--
+-- Safe by design: there is no DROP TABLE. If the tables already exist, MySQL stops at the
+-- first CREATE TABLE and nothing is deleted. To update an Assessment 2 database that is
+-- already in use, run the files in backend/database/migrations instead (see the README).
 
 CREATE DATABASE IF NOT EXISTS dprate CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE dprate;
-
--- Child tables first, because of the foreign keys.
-DROP TABLE IF EXISTS favourites;
-DROP TABLE IF EXISTS reviews;
-DROP TABLE IF EXISTS games;
-DROP TABLE IF EXISTS genres;
-DROP TABLE IF EXISTS users;
 
 -- Users: passwords are stored only as a hash made by password_hash().
 CREATE TABLE users (
@@ -33,13 +30,11 @@ CREATE TABLE genres (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Games: the live dataset. "tags" is a comma-separated list, turned into an array by PHP.
--- "rating" is a fixed value per game in Assessment 2 (there are no reviews yet).
--- In Assessment 3 the API will take it from AVG(reviews.rating) instead.
+-- There is no rating column: the rating is always calculated from the reviews (AVG in games.php).
 CREATE TABLE games (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   title VARCHAR(120) NOT NULL,
   genre_id INT UNSIGNED NOT NULL,
-  rating DECIMAL(2,1) NOT NULL DEFAULT 0.0,
   image VARCHAR(255) NOT NULL,
   tags VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
@@ -51,7 +46,7 @@ CREATE TABLE games (
   CONSTRAINT fk_games_genre FOREIGN KEY (genre_id) REFERENCES genres (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Reviews (table from the A1 proposal). Empty in Assessment 2; the review system is built in Assessment 3.
+-- Reviews: one review per player per game (UNIQUE user_id + game_id), 1 to 5 stars.
 CREATE TABLE reviews (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   game_id INT UNSIGNED NOT NULL,
@@ -66,7 +61,7 @@ CREATE TABLE reviews (
   CONSTRAINT fk_reviews_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Favourites (table from the A1 proposal). Empty in Assessment 2; add and remove are built in Assessment 3.
+-- Favourites: the primary key (user_id, game_id) stops the same game being saved twice.
 CREATE TABLE favourites (
   user_id INT UNSIGNED NOT NULL,
   game_id INT UNSIGNED NOT NULL,
@@ -86,13 +81,13 @@ INSERT INTO genres (id, name) VALUES
 
 -- Fixed ids (2, 3, 4) match the React mockup and the API contract:
 -- game.php?id=2 must return League of Legends.
-INSERT INTO games (id, title, genre_id, rating, image, tags, description, developer, publisher, release_text, platforms) VALUES
-(2, 'League of Legends', 5, 4.6, '/assets/league-of-legends.jpg', 'Strategy,MOBA,Multiplayer',
+INSERT INTO games (id, title, genre_id, image, tags, description, developer, publisher, release_text, platforms) VALUES
+(2, 'League of Legends', 5, '/assets/league-of-legends.jpg', 'Strategy,MOBA,Multiplayer',
  'League of Legends is a multiplayer online, fast-paced strategy game where two teams of five players fight to destroy the enemy''s main base.',
  'Riot Games', 'Riot Games', '2009', 'PC'),
-(3, 'Valorant', 1, 4.5, '/assets/valorant.jpg', 'Action,Tactical Shooter,Multiplayer',
+(3, 'Valorant', 1, '/assets/valorant.jpg', 'Action,Tactical Shooter,Multiplayer',
  'A team-based tactical shooter where players use their skills and abilities to compete in exciting matches.',
  'Riot Games', 'Riot Games', '2020', 'PC and consoles'),
-(4, 'Counter-Strike 2', 1, 4.8, '/assets/counter-strike-2.jpg', 'Action,FPS,Multiplayer',
+(4, 'Counter-Strike 2', 1, '/assets/counter-strike-2.jpg', 'Action,FPS,Multiplayer',
  'A competitive tactical shooter with objective-based matches and team gameplay.',
  'Valve', 'Valve', '2023', 'PC');

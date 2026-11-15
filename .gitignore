@@ -3,3 +3,5 @@
 **/.env
 **/.env.*
 !**/.env.example
+# Local settings with passwords (each computer or server has its own)
+backend/includes/config.local.php

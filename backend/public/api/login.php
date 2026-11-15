@@ -1,15 +1,17 @@
 <?php
-// POST /api/login.php {login, password} -> login with username OR email.
-require __DIR__ . '/../../includes/helpers.php';
+// POST /api/login.php {login, password} -> logs in with username OR email.
+require __DIR__ . '/../../includes/bootstrap.php';
 
 require_method('POST');
+start_api_session();
+require_csrf();
 
 $data = read_json_body();
-$login = trim((string) ($data['login'] ?? ''));
-$password = (string) ($data['password'] ?? '');
+$login = body_string($data, 'login');
+$password = is_string($data['password'] ?? null) ? $data['password'] : '';
 
 if ($login === '' || $password === '') {
-    json_response(['success' => false, 'message' => 'Enter your username or email and password.'], 400);
+    json_error('Enter your username or email and password.', 400);
 }
 
 // Two different placeholder names, because PDO does not allow reusing one.
@@ -23,13 +25,15 @@ $row = $stmt->fetch();
 
 // Same message for "no such user" and "wrong password", so attackers learn nothing.
 if (!$row || !password_verify($password, $row['password_hash'])) {
-    json_response(['success' => false, 'message' => 'Invalid username/email or password.'], 401);
+    json_error('Invalid username/email or password.', 401);
 }
 
-$user = public_user($row);
+// If PHP's default hashing algorithm gets stronger, old hashes are upgraded at login.
+if (password_needs_rehash($row['password_hash'], PASSWORD_DEFAULT)) {
+    db()->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+        ->execute(['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => $row['id']]);
+}
 
-start_api_session();
-session_regenerate_id(true); // new session id after login, to prevent session fixation
-$_SESSION['user'] = $user;
+log_in_user($row);
 
-json_response(['success' => true, 'user' => $user]);
+json_response(['success' => true, 'user' => current_user(), 'csrf_token' => csrf_token()]);
