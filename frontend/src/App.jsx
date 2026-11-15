@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { fetchGames, fetchGame, getSession, loginUser, registerUser, logoutUser } from './api'
+import ReviewSection from './ReviewSection'
+import MyFavourites from './MyFavourites'
+import AccountPage from './AccountPage'
+import { fetchGames, fetchGame, getSession, loginUser, registerUser, logoutUser, fetchFavourites, addFavourite, removeFavourite } from './api'
 
 // Temporary fallback used ONLY when the PHP/MySQL server is offline.
 // The finished prototype reads games from MySQL through PHP endpoints.
@@ -31,11 +34,26 @@ const genres = ['Action', 'Adventure', 'RPG', 'Sports', 'Strategy', 'Simulation'
 function pageFromHash() {
   const hash = window.location.hash
   const match = hash.match(/^#game\/(\d+)$/)
-  if (match) return { gameId: Number(match[1]), authMode: null }
+  if (match) return { gameId: Number(match[1]), authMode: null, favourites: false, account: false }
+  if (hash === '#favourites') return { gameId: null, authMode: null, favourites: true, account: false }
+  if (hash === '#account') return { gameId: null, authMode: null, favourites: false, account: true }
   if (hash === '#login' || hash === '#register') {
-    return { gameId: null, authMode: hash.slice(1) }
+    return { gameId: null, authMode: hash.slice(1), favourites: false, account: false }
   }
-  return { gameId: null, authMode: null }
+  return { gameId: null, authMode: null, favourites: false, account: false }
+}
+
+// Temporary local preview is scoped to a user ID and stores only game IDs.
+// It is NOT a substitute for Pedro's MySQL API or cross-device persistence.
+const previewKey = userId => `dprate-a3-favourites-preview-user-${userId}`
+function readPreviewIds(userId) {
+  try {
+    const values = JSON.parse(window.localStorage.getItem(previewKey(userId)) || '[]')
+    return Array.isArray(values) ? [...new Set(values.map(Number).filter(id => Number.isInteger(id) && id > 0))] : []
+  } catch { return [] }
+}
+function savePreviewIds(userId, ids) {
+  window.localStorage.setItem(previewKey(userId), JSON.stringify(ids))
 }
 
 function App() {
@@ -43,14 +61,26 @@ function App() {
   const [dataMode, setDataMode] = useState('loading')
   const [dataError, setDataError] = useState('')
   const [activeUser, setActiveUser] = useState(null)
+  const [sessionLoading, setSessionLoading] = useState(true)
+  const [favouriteGames, setFavouriteGames] = useState([])
+  const [previewFavouriteIds, setPreviewFavouriteIds] = useState([])
+  const [favouritesMode, setFavouritesMode] = useState('idle')
+  const [favouritesError, setFavouritesError] = useState('')
+  const [favouritesRetry, setFavouritesRetry] = useState(0)
+  const [favouriteBusyId, setFavouriteBusyId] = useState(null)
+  const [returnToGameId, setReturnToGameId] = useState(null)
   const [authBusy, setAuthBusy] = useState(false)
   const [loadedDetail, setLoadedDetail] = useState(null)
+  // Live review statistics for games that have been opened in this session.
+  const [reviewStats, setReviewStats] = useState({})
   const [search, setSearch] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('')
   const [sortTopRated, setSortTopRated] = useState(false)
   const [notice, setNotice] = useState('')
   const [selectedGameId, setSelectedGameId] = useState(() => pageFromHash().gameId)
   const [authMode, setAuthMode] = useState(() => pageFromHash().authMode)
+  const [showFavourites, setShowFavourites] = useState(() => pageFromHash().favourites)
+  const [showAccount, setShowAccount] = useState(() => pageFromHash().account)
   const [authMessage, setAuthMessage] = useState('')
   const [authFields, setAuthFields] = useState({ username: '', email: '', password: '', confirm: '', remember: false })
 
@@ -59,6 +89,8 @@ function App() {
       const page = pageFromHash()
       setSelectedGameId(page.gameId)
       setAuthMode(page.authMode)
+      setShowFavourites(page.favourites)
+      setShowAccount(page.account)
       setAuthMessage('')
     }
     window.addEventListener('hashchange', updatePage)
@@ -82,8 +114,43 @@ function App() {
     getSession()
       .then(result => { if (active) setActiveUser(result.user) })
       .catch(() => { if (active) setActiveUser(null) })
+      .finally(() => { if (active) setSessionLoading(false) })
     return () => { active = false }
   }, [])
+
+  // Load a signed-in user's favourites. The database is authoritative once the
+  // endpoint exists. Only a *missing* API (HTTP 404) enables browser-only preview.
+  useEffect(() => {
+    let active = true
+    if (!activeUser?.id) {
+      setFavouriteGames([])
+      setPreviewFavouriteIds([])
+      setFavouritesMode('idle')
+      setFavouritesError('')
+      return () => { active = false }
+    }
+
+    setFavouritesMode('loading')
+    setFavouritesError('')
+    fetchFavourites()
+      .then(({ favourites }) => {
+        if (!active) return
+        setFavouriteGames(favourites)
+        setPreviewFavouriteIds([])
+        setFavouritesMode('live')
+      })
+      .catch(error => {
+        if (!active) return
+        if (error.status === 404) {
+          setPreviewFavouriteIds(readPreviewIds(activeUser.id))
+          setFavouritesMode('preview')
+        } else {
+          setFavouritesError(error.message)
+          setFavouritesMode('error')
+        }
+      })
+    return () => { active = false }
+  }, [activeUser?.id, favouritesRetry])
 
   // Each game page requests its own details from the API when available.
   useEffect(() => {
@@ -104,11 +171,36 @@ function App() {
       game.title.toLowerCase().includes(search.toLowerCase()) &&
       (!selectedGenre || game.genre === selectedGenre)
     )
-    if (sortTopRated) matchingGames = [...matchingGames].sort((a, b) => b.rating - a.rating)
+    if (sortTopRated) matchingGames = [...matchingGames].sort((a, b) => (reviewStats[b.id]?.rating ?? b.rating ?? -1) - (reviewStats[a.id]?.rating ?? a.rating ?? -1))
     return matchingGames
-  }, [games, search, selectedGenre, sortTopRated])
+  }, [games, search, selectedGenre, sortTopRated, reviewStats])
+
+  const favouriteIds = favouritesMode === 'preview'
+    ? previewFavouriteIds
+    : favouriteGames.map(game => game.id)
+  const displayedFavourites = favouritesMode === 'preview'
+    ? previewFavouriteIds.map(id => games.find(game => game.id === id)).filter(Boolean)
+    : favouriteGames.map(favourite => games.find(game => game.id === favourite.id) || favourite)
 
   const selectedGame = loadedDetail?.id === selectedGameId ? loadedDetail : games.find(game => game.id === selectedGameId)
+
+  function updateReviewStats(gameId, reviews) {
+    const count = reviews.length
+    const rating = count === 0 ? null : reviews.reduce((sum, review) => sum + review.rating, 0) / count
+    setReviewStats(previous => ({ ...previous, [gameId]: { rating, count } }))
+  }
+
+  async function refreshGameRatings(gameId) {
+    // Do not misreport a saved review as failed if an optional ratings refresh fails.
+    const [details, listing] = await Promise.allSettled([fetchGame(gameId), fetchGames()])
+    if (details.status === 'fulfilled') setLoadedDetail(details.value.game)
+    if (listing.status === 'fulfilled') setGames(listing.value.games)
+  }
+
+  function ratingLabel(game) {
+    const score = reviewStats[game.id]?.rating ?? (Object.prototype.hasOwnProperty.call(reviewStats, game.id) ? null : game.rating)
+    return score == null ? 'Not rated' : Number(score).toFixed(1)
+  }
 
   function resetFilters() {
     setSearch('')
@@ -116,9 +208,30 @@ function App() {
     setSortTopRated(false)
   }
 
+  // Proper navigation dropdown actions (instead of decorative arrow-only links).
+  function browseGames({ genre = '', topRated = false } = {}) {
+    setSelectedGameId(null)
+    setAuthMode(null)
+    setShowFavourites(false)
+    setShowAccount(false)
+    setSearch('')
+    setSelectedGenre(genre)
+    setSortTopRated(topRated)
+    setNotice('')
+    window.location.hash = 'featured-games'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function closeDropdown(event) {
+    const details = event.currentTarget.closest('details')
+    if (details) details.open = false
+  }
+
   function goHome() {
     setSelectedGameId(null)
     setAuthMode(null)
+    setShowFavourites(false)
+    setShowAccount(false)
     setNotice('')
     resetFilters()
     window.location.hash = 'home'
@@ -128,9 +241,81 @@ function App() {
   function openGame(gameId) {
     setSelectedGameId(gameId)
     setAuthMode(null)
+    setShowFavourites(false)
+    setShowAccount(false)
     setNotice('')
     window.location.hash = `game/${gameId}`
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function openFavourites() {
+    setSelectedGameId(null)
+    setAuthMode(null)
+    setShowFavourites(true)
+    setShowAccount(false)
+    setNotice('')
+    window.location.hash = 'favourites'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function openAccount() {
+    setSelectedGameId(null)
+    setAuthMode(null)
+    setShowFavourites(false)
+    setShowAccount(true)
+    setNotice('')
+    window.location.hash = 'account'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function toggleFavourite(game) {
+    if (!activeUser?.id) {
+      setReturnToGameId(game.id)
+      openAuth('login')
+      setNotice('Log in to save games to My Favourites.')
+      return
+    }
+    if (favouriteBusyId !== null || favouritesMode === 'loading') return
+    if (favouritesMode === 'error' || favouritesMode === 'idle') {
+      setNotice('Favourites are unavailable right now. Please try again.')
+      return
+    }
+    const removing = favouriteIds.includes(game.id)
+    const message = removing ? `${game.title} removed from My Favourites.` : `${game.title} added to My Favourites.`
+
+    if (favouritesMode === 'preview') {
+      const nextIds = removing
+        ? previewFavouriteIds.filter(id => id !== game.id)
+        : [...previewFavouriteIds, game.id]
+      try {
+        savePreviewIds(activeUser.id, nextIds)
+        setPreviewFavouriteIds(nextIds)
+        setNotice(`${message} Browser preview only — not saved in MySQL.`)
+      } catch {
+        setNotice('Browser storage is unavailable. Could not save the preview favourites.')
+      }
+      return
+    }
+
+    setFavouriteBusyId(game.id)
+    try {
+      if (removing) await removeFavourite(game.id)
+      else await addFavourite(game.id)
+      // Update immediately after a successful write. Fetching again is a bonus,
+      // and a refresh failure must not be reported as a failed save.
+      setFavouriteGames(current => removing
+        ? current.filter(item => item.id !== game.id)
+        : current.some(item => item.id === game.id) ? current : [...current, game])
+      setNotice(message)
+      try {
+        const { favourites } = await fetchFavourites()
+        setFavouriteGames(favourites)
+      } catch { /* A successful write is still successful. */ }
+    } catch (error) {
+      setNotice(`Could not update favourites: ${error.message}`)
+    } finally {
+      setFavouriteBusyId(null)
+    }
   }
 
   function showComingSoon(feature) {
@@ -141,6 +326,8 @@ function App() {
   function openAuth(mode) {
     setSelectedGameId(null)
     setAuthMode(mode)
+    setShowFavourites(false)
+    setShowAccount(false)
     setAuthMessage('')
     setNotice('')
     window.location.hash = mode
@@ -167,7 +354,12 @@ function App() {
       setActiveUser(result.user)
       setAuthFields({ username: '', email: '', password: '', confirm: '', remember: false })
       const success = authMode === 'register' ? 'Account registered successfully.' : 'Logged in successfully.'
-      goHome()
+      if (returnToGameId !== null) {
+        openGame(returnToGameId)
+        setReturnToGameId(null)
+      } else {
+        goHome()
+      }
       setNotice(success)
     } catch (error) {
       setAuthMessage(error.message)
@@ -180,6 +372,7 @@ function App() {
     try {
       await logoutUser()
       setActiveUser(null)
+      setReturnToGameId(null)
       goHome()
       setNotice('You have signed out.')
     } catch (error) {
@@ -197,9 +390,23 @@ function App() {
 
           <nav className="nav-links" aria-label="Main navigation">
             <a href="#home" onClick={goHome}>Home</a>
-            <a href="#featured-games" onClick={() => { setSelectedGameId(null); setAuthMode(null); setSelectedGenre(''); setSortTopRated(false) }}>Games<span className="chevron">▾</span></a>
-            <a href="#genres" onClick={() => { setSelectedGameId(null); setAuthMode(null) }}>Genres<span className="chevron">▾</span></a>
-            <a href="#featured-games" onClick={() => { setSelectedGameId(null); setAuthMode(null); setSelectedGenre(''); setSortTopRated(true) }}>Top Rated</a>
+            <details className="nav-dropdown">
+              <summary>Games <span className="chevron">▾</span></summary>
+              <div className="nav-dropdown-menu">
+                <button type="button" onClick={event => { browseGames(); closeDropdown(event) }}>All Games</button>
+                <button type="button" onClick={event => { browseGames({ topRated: true }); closeDropdown(event) }}>Top Rated</button>
+                {activeUser && <button type="button" onClick={event => { openFavourites(); closeDropdown(event) }}>My Favourites</button>}
+              </div>
+            </details>
+            <details className="nav-dropdown">
+              <summary>Genres <span className="chevron">▾</span></summary>
+              <div className="nav-dropdown-menu">
+                {genres.map(genre => <button type="button" key={genre} onClick={event => { browseGames({ genre }); closeDropdown(event) }}>{genre}</button>)}
+              </div>
+            </details>
+            <button className="nav-link-button" type="button" onClick={() => browseGames({ topRated: true })}>Top Rated</button>
+            {activeUser && <a href="#favourites" onClick={openFavourites} aria-current={showFavourites ? 'page' : undefined}>♡ My Favourites <span className="favourites-nav-count">{favouriteIds.length}</span></a>}
+            {activeUser && <a href="#account" onClick={openAccount} aria-current={showAccount ? 'page' : undefined}>My Account</a>}
           </nav>
 
           <div className="nav-actions">
@@ -208,7 +415,7 @@ function App() {
                 <circle cx="10.8" cy="10.8" r="6.4" stroke="currentColor" strokeWidth="2.4" fill="none" />
                 <path d="m15.6 15.6 5 5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
               </svg>
-              <input value={search} onChange={e => { setSearch(e.target.value); setSelectedGameId(null); setAuthMode(null); window.location.hash = 'featured-games' }} placeholder="Search for games..." aria-label="Search for games" />
+              <input value={search} onChange={e => { setSearch(e.target.value); setSelectedGameId(null); setAuthMode(null); setShowFavourites(false); setShowAccount(false); window.location.hash = 'featured-games' }} placeholder="Search for games..." aria-label="Search for games" />
             </label>
             {activeUser ? (
               <div className="signed-in-controls">
@@ -232,7 +439,32 @@ function App() {
         )}
 
         <main>
-          {authMode ? (
+          {showFavourites ? (
+            <MyFavourites
+              activeUser={activeUser}
+              sessionLoading={sessionLoading}
+              games={displayedFavourites}
+              mode={favouritesMode}
+              error={favouritesError}
+              busyId={favouriteBusyId}
+              onBrowse={goHome}
+              onLogin={() => openAuth('login')}
+              onOpenGame={openGame}
+              onRemove={toggleFavourite}
+              onRetry={() => setFavouritesRetry(count => count + 1)}
+              ratingLabel={ratingLabel}
+            />
+          ) : showAccount ? (
+            <AccountPage
+              activeUser={activeUser}
+              sessionLoading={sessionLoading}
+              onLogin={() => openAuth('login')}
+              onBrowse={goHome}
+              onOpenGame={openGame}
+              onUserChanged={setActiveUser}
+              onReviewsChanged={refreshGameRatings}
+            />
+          ) : authMode ? (
             <section className="auth-page" aria-label={authMode === 'login' ? 'Log in to DPRate' : 'Register for DPRate'}>
               <div className="auth-art">
                 <div className="auth-art-copy">
@@ -293,7 +525,7 @@ function App() {
                 <img className="details-cover" src={selectedGame.image} alt={`${selectedGame.title} cover`} />
                 <div className="details-info">
                   <h1>{selectedGame.title}</h1>
-                  <div className="details-rating"><span className="star">★</span> {selectedGame.rating.toFixed(1)}</div>
+                  <div className="details-rating"><span className="star">★</span> {ratingLabel(selectedGame)}</div>
                   <div className="details-tags">
                     {selectedGame.tags.map(tag => <span key={tag}>{tag}</span>)}
                   </div>
@@ -304,42 +536,26 @@ function App() {
                     <div><dt>Release</dt><dd>{selectedGame.release}</dd></div>
                     <div><dt>Platforms</dt><dd>{selectedGame.platforms}</dd></div>
                   </dl>
-                  <button className="favourites-link" type="button" onClick={() => showComingSoon('Favourites')}>♡ Add to Favourites</button>
+                  <button
+                    className={`favourites-link ${favouriteIds.includes(selectedGame.id) ? 'is-favourite' : ''}`}
+                    type="button"
+                    disabled={activeUser && (favouritesMode === 'loading' || favouriteBusyId === selectedGame.id)}
+                    aria-pressed={activeUser ? favouriteIds.includes(selectedGame.id) : false}
+                    onClick={() => toggleFavourite(selectedGame)}
+                  >
+                    {favouriteBusyId === selectedGame.id ? 'Updating...' : favouriteIds.includes(selectedGame.id) ? '♥ Remove from Favourites' : '♡ Add to Favourites'}
+                  </button>
                 </div>
               </div>
 
-              <div className="reviews-layout">
-                <section className="reviews-area">
-                  <h2>Player Reviews</h2>
-                  {selectedGame.id === 2 ? (
-                    <>
-                      <p className="sample-label">Example reviews from our Assessment 1 mockup</p>
-                      <article className="review-card">
-                        <div className="review-avatar">S</div>
-                        <div><strong>Suzuki2004</strong><div className="review-score">★ 5.0</div><p>Great game, can’t stop playing this...</p></div>
-                      </article>
-                      <article className="review-card">
-                        <div className="review-avatar second-avatar">D</div>
-                        <div><strong>Daroki</strong><div className="review-score">★ 4.6</div><p>Good competitive game...</p></div>
-                      </article>
-                    </>
-                  ) : (
-                    <p className="sample-label">Player reviews are planned for Assessment 3.</p>
-                  )}
-                </section>
-
-                <section className="review-form-area" aria-label="Write a review preview">
-                  <h2>Write a Review</h2>
-                  <div className="review-form-card">
-                    <h3>Your Rating:</h3>
-                    <div className="demo-stars" aria-label="Review rating preview">★★★★★</div>
-                    <h3>Your Review:</h3>
-                    <textarea placeholder="Write here (max. 500 words)" aria-label="Your review" disabled />
-                    <button type="button" onClick={() => showComingSoon('Submitting reviews')}>Submit Review</button>
-                    <small>Review submission is planned for Assessment 3.</small>
-                  </div>
-                </section>
-              </div>
+              <ReviewSection
+                key={selectedGame.id}
+                gameId={selectedGame.id}
+                activeUser={activeUser}
+                onLogin={() => openAuth('login')}
+                onReviewsChanged={refreshGameRatings}
+                onRatingLoaded={updateReviewStats}
+              />
             </section>
           ) : (
             <>
@@ -381,7 +597,7 @@ function App() {
                           <h3>{game.title}</h3>
                           <div className="game-meta">
                             <span>{game.genre}</span>
-                            <span className="rating"><span className="star" aria-label="Rating">★</span>{game.rating.toFixed(1)}</span>
+                            <span className="rating"><span className="star" aria-label="Rating">★</span>{ratingLabel(game)}</span>
                           </div>
                         </div>
                       </button>

@@ -1,0 +1,50 @@
+/* Assessment 3: My Favourites — follows DPRate's dark background and purple accent. */
+.favourites-page { padding: 24px 0 65px; min-height: 63vh; }
+.favourites-back { background: none; border: 0; color: #bea0ff; padding: 4px 0 17px; font-size: 13px; }
+.favourites-back:hover { color: white; }
+.favourites-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 27px 32px; background: linear-gradient(115deg,#121628,#21173e 65%,#341c5d); border: 1px solid #353052; border-radius: 20px; }
+.favourites-eyebrow { color: #c3a8ff; font-size: 12px; font-weight: 700; letter-spacing: .15em; margin: 0 0 9px; }
+.favourites-header h1 { font: 40px/1.15 'Anton', Impact, sans-serif; font-weight: 400; margin: 0; }
+.favourites-header h1 span { color: #9d65f7; }
+.favourites-subtitle { font-size: 14px; color: #c5c9df; line-height: 1.5; margin: 12px 0 0; }
+.favourites-counter { display: flex; flex-direction: column; align-items: center; flex: 0 0 110px; background: #15142b; padding: 15px 10px; border: 1px solid #494064; border-radius: 15px; }
+.favourites-counter strong { color: #b58bff; font: 33px 'Anton', Impact, sans-serif; }
+.favourites-counter span { color: #cbd0df; font-size: 12px; }
+.favourites-preview-note { background: #2c2342; border-left: 3px solid #b38afa; border-radius: 9px; padding: 13px 16px; font-size: 13px; line-height: 1.55; margin-top: 21px; color: #e7dfff; }
+.favourites-feedback { color: #cad0df; margin: 42px 0; }
+.favourites-error { background: #29203f; border: 1px solid #64468a; border-radius: 12px; margin-top: 22px; padding: 24px; }
+.favourites-error p { color: #e7daf8; font-size: 13px; }
+.favourites-empty { display: flex; align-items: center; flex-direction: column; text-align: center; gap: 12px; border: 1px dashed #45415f; border-radius: 20px; padding: 50px 22px; margin: 30px auto 0; background: #111626; }
+.favourites-empty-heart { display: grid; place-items: center; color: #a875fc; font-size: 65px; line-height: 1; background: #291e48; width: 98px; height: 98px; border-radius: 50%; }
+.favourites-empty h2 { font: 26px 'Anton', Impact, sans-serif; font-weight: 400; margin: 8px 0 0; }
+.favourites-empty p { color: #bbc1d4; font-size: 14px; max-width: 380px; margin: 0 0 8px; line-height: 1.5; }
+.favourites-primary { background: #9257ef; border: 0; color: white; border-radius: 11px; padding: 12px 26px; font-weight: 600; }
+.favourites-primary:hover { background: #ad82ff; }
+.favourites-section-heading { margin: 32px 0 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+.favourites-section-heading h2 { font: 24px 'Anton', Impact, sans-serif; font-weight: 400; margin: 0; }
+.favourites-section-heading button { background: none; border: 0; color: #ba93ff; font-size: 13px; }
+.favourites-section-heading button:hover { color: white; }
+.favourites-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 22px; }
+.favourites-card { min-width: 0; overflow: hidden; padding: 5px; border-radius: 16px; background: #0d1323; border: 1px solid #252741; }
+.favourites-card-open { width: 100%; display: block; padding: 0; border: 0; border-radius: 12px; background: none; overflow: hidden; }
+.favourites-card-open img { width: 100%; display: block; aspect-ratio: 1 / 1; object-fit: cover; transition: transform .2s ease; }
+.favourites-card-open:hover img { transform: scale(1.04); }
+.favourites-card-content { padding: 12px 10px 10px; }
+.favourites-card h3 { margin: 0 0 12px; font: 19px 'Anton', Impact, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.favourites-card-meta { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: #c6cadd; font-size: 13px; }
+.favourites-rating { font-family: 'Anton',Impact,sans-serif; color: white; white-space: nowrap; }
+.favourites-rating > span { color: #ffc400; font-family: Arial,sans-serif; font-size: 20px; }
+.favourites-card-actions { display: flex; justify-content: space-between; gap: 5px; margin-top: 15px; }
+.favourites-card-actions button { padding: 9px 8px; border-radius: 9px; font-size: 12px; border: 0; }
+.favourites-view { background: #282043; color: #e4d4ff; }
+.favourites-view:hover { background: #43316d; }
+.favourites-remove { color: #e7cafa; background: #281a3c; }
+.favourites-remove:hover:not(:disabled) { background: #503069; }
+.favourites-remove:disabled { opacity: .6; cursor: wait; }
+.favourites-link.is-favourite { color: #ffb5ed; }
+.favourites-link:disabled { opacity: .65; cursor: wait; }
+.favourites-nav-count { font-size: 10px; background: #37204f; color: #e8d4ff; border-radius: 9px; padding: 2px 5px; text-decoration: none; }
+.nav-links a[aria-current="page"] { color: #c9a3ff; }
+@media (max-width: 1000px) { .favourites-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 750px) { .favourites-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .favourites-header { padding: 23px; } .favourites-header h1 { font-size: 32px; } }
+@media (max-width: 480px) { .favourites-grid { grid-template-columns: 1fr; } .favourites-header { align-items: start; } .favourites-counter { flex-basis: 80px; } .favourites-counter span { font-size: 10px; } .favourites-subtitle { font-size: 12px; } }

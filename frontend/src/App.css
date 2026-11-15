@@ -245,3 +245,54 @@ a { color: inherit; }
 .signed-in-name { font-size: 13px; white-space: nowrap; color: #d9c4ff; }
 .auth-submit:disabled { opacity: .65; cursor: wait; }
 @media (max-width: 700px) { .signed-in-name { display: none; } }
+
+/* A3 - real review list and interactive rating form, continuing the A2 purple theme. */
+.review-content { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.review-date { display: block; margin-top: 9px; color: #aeb4c9; font-size: 11px; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.review-actions button { border: 1px solid #8a65ce; background: #241b3d; color: #e8dbff; padding: 5px 11px; border-radius: 7px; }
+.review-actions button:hover:not(:disabled) { background: #4c367c; }
+.review-actions button:disabled { opacity: .55; cursor: wait; }
+.review-star-picker { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 17px; }
+.review-star-button { background: none; border: 0; padding: 0 2px; font: 38px/1 Arial, sans-serif; color: #ead8ff; transition: color .1s ease; }
+.review-star-button.is-selected { color: #ffcb20; }
+.review-star-button:disabled { opacity: .55; cursor: not-allowed; }
+.review-star-button:focus-visible { outline: 2px solid #fff; border-radius: 4px; }
+.review-form-card form { display: flex; flex-direction: column; align-items: stretch; }
+.review-form-card textarea:disabled { opacity: .65; cursor: not-allowed; }
+.review-form-card textarea:focus-visible { outline: 3px solid #211637; }
+.review-word-count { align-self: flex-end; margin-top: 6px; }
+.review-form-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.review-form-actions button, .review-sign-in button { background: #17152b; color: white; border: 0; border-radius: 20px; padding: 11px 20px; }
+.review-form-actions button:hover:not(:disabled), .review-sign-in button:hover { background: #31254c; }
+.review-form-actions button:disabled { opacity: .55; cursor: not-allowed; }
+.review-sign-in { text-align: center; font-size: 14px; line-height: 1.6; }
+.review-sign-in button { margin-top: 5px; }
+.review-feedback { background: #493275; border-radius: 7px; padding: 11px; font-size: 13px; line-height: 1.5; }
+.reviews-error { color: #e9d8ff; background: #2a233d; padding: 15px; border-radius: 9px; font-size: 13px; }
+.reviews-error button { background: #9160de; color: white; border: 0; border-radius: 7px; padding: 8px 14px; }
+.review-service-note { display: block; margin-top: 12px; line-height: 1.5; }
+
+
+/* A3 polish: functional, keyboard-accessible dropdown navigation. */
+.nav-link-button, .nav-dropdown summary {
+  font: inherit; font-size: 15px; color: inherit; text-decoration: underline;
+  text-underline-offset: 2px; background: transparent; border: 0; cursor: pointer;
+  padding: 0; white-space: nowrap;
+}
+.nav-link-button:hover, .nav-dropdown summary:hover { color: #ad7cff; }
+.nav-dropdown { position: relative; }
+.nav-dropdown summary { list-style: none; }
+.nav-dropdown summary::-webkit-details-marker { display: none; }
+.nav-dropdown summary:focus-visible { outline: 2px solid #a78bfa; outline-offset: 4px; }
+.nav-dropdown-menu { position: absolute; top: calc(100% + 13px); left: 0; z-index: 40;
+  width: 175px; border: 1px solid #443760; border-radius: 11px;
+  background: #17172b; box-shadow: 0 14px 30px #0707179c; padding: 7px;
+  display: flex; flex-direction: column; gap: 2px; }
+.nav-dropdown-menu button { display: block; width: 100%; text-align: left; background: transparent;
+  color: #f6f1ff; border: 0; border-radius: 7px; font-size: 13px; padding: 10px 11px; }
+.nav-dropdown-menu button:hover, .nav-dropdown-menu button:focus-visible { background: #39255d; }
+@media(max-width:700px) {
+  .nav-links { flex-wrap: wrap; justify-content: flex-start; column-gap: 14px; row-gap: 10px; }
+  .nav-link-button, .nav-dropdown summary { font-size: 12px; }
+}
