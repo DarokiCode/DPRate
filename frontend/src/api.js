@@ -1,33 +1,48 @@
-// Calls to Pedro's PHP API stay here, instead of being spread across the React pages.
-// During development, Vite forwards /api to http://127.0.0.1:8000.
-// The PHP session uses a cookie. Never keep passwords in localStorage.
-async function request(path, options = {}) {
-  let response
+// Every call to the PHP API lives here, instead of being spread across the pages.
+// In development Vite forwards /api to http://127.0.0.1:8000; on the live site
+// React and PHP share the same address, so the session cookie just works.
+// Passwords are never kept in the browser.
 
+// CSRF token of this PHP session. PHP sends it in session.php and again whenever
+// it changes it (login, logout, password change). Every request that changes data
+// sends it back in the X-CSRF-Token header.
+let csrfToken = ''
+
+async function send(path, options) {
+  const method = options.method || 'GET'
+  const headers = { Accept: 'application/json' }
+  if (options.body) headers['Content-Type'] = 'application/json'
+  if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken
+
+  let response
   try {
-    response = await fetch(`/api/${path}`, {
-      credentials: 'same-origin',
-      headers: {
-        Accept: 'application/json',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      },
-      ...options,
-    })
+    response = await fetch(`/api/${path}`, { ...options, method, headers, credentials: 'same-origin' })
   } catch {
-    throw new Error('PHP backend not connected yet.')
+    throw new Error('Could not reach the DPRate server. Check your connection and try again.')
   }
 
-  let result
+  let result = null
   try {
     result = await response.json()
   } catch {
-    const error = new Error('Invalid API response. Check that PHP is running on port 8000.')
-    error.status = response.status // Lets favourites preview detect ONLY a missing endpoint (404).
-    throw error
+    // Not JSON: the server is down or misconfigured.
+  }
+
+  if (typeof result?.csrf_token === 'string') csrfToken = result.csrf_token
+  return { response, result }
+}
+
+async function request(path, options = {}) {
+  let { response, result } = await send(path, options)
+
+  // The token can expire with the session: get a fresh one and try once more.
+  if (response.status === 403 && result?.csrf === true) {
+    await send('session.php', {})
+    ;({ response, result } = await send(path, options))
   }
 
   if (!response.ok || result?.success !== true) {
-    const error = new Error(result?.message || `API request failed (${response.status}).`)
+    const error = new Error(result?.message || 'The server could not complete this request. Please try again.')
     error.status = response.status
     throw error
   }
@@ -35,10 +50,12 @@ async function request(path, options = {}) {
   return result
 }
 
+const json = (method, body) => ({ method, body: JSON.stringify(body) })
+
 // PHP/MySQL can send numbers as strings. Convert them before displaying a game.
 function formatGame(game) {
   if (!game || !Number.isInteger(Number(game.id)) || !game.title) {
-    throw new Error('Invalid game data. Ask Pedro to check the API response.')
+    throw new Error('The server sent a game in an unexpected format.')
   }
 
   const score = game.rating == null || game.rating === '' ? null : Number(game.rating)
@@ -47,10 +64,12 @@ function formatGame(game) {
     title: String(game.title),
     genre: String(game.genre || 'Other'),
     rating: score !== null && Number.isFinite(score) ? score : null,
-    reviewCount: Number.isInteger(Number(game.review_count)) && game.review_count != null ? Number(game.review_count) : null,
+    reviewCount: Number(game.review_count) || 0,
     image: String(game.image || ''),
+    banner: game.banner ? String(game.banner) : null,
+    logo: game.logo ? String(game.logo) : null,
     tags: Array.isArray(game.tags) ? game.tags : [],
-    description: String(game.description || 'Description not available yet.'),
+    description: String(game.description || ''),
     developer: String(game.developer || 'Not available'),
     publisher: String(game.publisher || 'Not available'),
     release: String(game.release || 'Not available'),
@@ -58,145 +77,114 @@ function formatGame(game) {
   }
 }
 
-export async function fetchGames() {
-  const response = await request('games.php')
-  if (!Array.isArray(response.games)) {
-    throw new Error('Expected an array called "games" from the API.')
+function formatReview(item) {
+  const rating = Number(item?.rating)
+  if (!Number.isInteger(Number(item?.id)) || !Number.isInteger(rating) || rating < 1 || rating > 5 ||
+      typeof item.comment !== 'string') {
+    throw new Error('The server sent a review in an unexpected format.')
   }
-  return { games: response.games.map(formatGame) }
+  return {
+    id: Number(item.id),
+    gameId: Number(item.game_id),
+    userId: Number(item.user_id),
+    username: String(item.username || ''),
+    rating,
+    comment: item.comment,
+    createdAt: typeof item.created_at === 'string' ? item.created_at : '',
+    gameTitle: typeof item.game_title === 'string' ? item.game_title : '',
+    gameImage: typeof item.game_image === 'string' ? item.game_image : '',
+  }
+}
+
+function formatUser(item) {
+  if (!item) return null
+  return { id: Number(item.id), username: String(item.username), email: String(item.email) }
+}
+
+// ---------- Games and genres ----------
+
+export async function fetchGames() {
+  const { games } = await request('games.php')
+  return games.map(formatGame)
 }
 
 export async function fetchGame(id) {
-  const response = await request(`game.php?id=${encodeURIComponent(id)}`)
-  return { game: formatGame(response.game) }
+  const { game } = await request(`game.php?id=${encodeURIComponent(id)}`)
+  return formatGame(game)
 }
 
-export function getSession() {
-  return request('session.php')
+export async function fetchGenres() {
+  const { genres } = await request('genres.php')
+  return genres.map(genre => ({ id: Number(genre.id), name: String(genre.name), count: Number(genre.game_count) || 0 }))
 }
 
-export function registerUser(user) {
-  return request('register.php', { method: 'POST', body: JSON.stringify(user) })
+// ---------- Session and accounts ----------
+
+export async function getSession() {
+  const { user } = await request('session.php')
+  return formatUser(user)
 }
 
-export function loginUser(credentials) {
-  return request('login.php', { method: 'POST', body: JSON.stringify(credentials) })
+export async function registerUser(user) {
+  return formatUser((await request('register.php', json('POST', user))).user)
+}
+
+export async function loginUser(credentials) {
+  return formatUser((await request('login.php', json('POST', credentials))).user)
 }
 
 export function logoutUser() {
-  return request('logout.php', { method: 'POST', body: JSON.stringify({}) })
+  return request('logout.php', json('POST', {}))
 }
 
-// A3 review API contract — Pedro implements backend/public/api/reviews.php.
-// GET returns { success: true, reviews: [{ id, game_id, user_id, username, rating, comment, created_at }] }.
-function formatReview(item) {
-  const id = Number(item?.id)
-  const userId = Number(item?.user_id)
-  const rating = Number(item?.rating)
-  if (!Number.isInteger(id) || !Number.isInteger(userId) ||
-      !Number.isInteger(rating) || rating < 1 || rating > 5 ||
-      typeof item.username !== 'string' || typeof item.comment !== 'string') {
-    throw new Error('Invalid review data from PHP. Check the agreed API contract.')
-  }
-  return {
-    id,
-    game_id: Number(item.game_id),
-    user_id: userId,
-    username: item.username,
-    rating,
-    comment: item.comment,
-    created_at: typeof item.created_at === 'string' ? item.created_at : '',
-  }
+export async function fetchAccount() {
+  const { user, reviews } = await request('account.php')
+  return { user: formatUser(user), reviews: reviews.map(formatReview) }
 }
+
+export async function updateAccountDetails({ username, email }) {
+  return formatUser((await request('account.php', json('PUT', { username, email }))).user)
+}
+
+export function changeAccountPassword({ currentPassword, newPassword }) {
+  return request('account.php', json('PUT', { current_password: currentPassword, new_password: newPassword }))
+}
+
+// ---------- Reviews ----------
 
 export async function fetchReviews(gameId) {
-  const response = await request(`reviews.php?game_id=${encodeURIComponent(gameId)}`)
-  if (!Array.isArray(response.reviews)) {
-    throw new Error('Expected an array called "reviews" from the PHP API.')
-  }
-  return { reviews: response.reviews.map(formatReview) }
+  const { reviews } = await request(`reviews.php?game_id=${encodeURIComponent(gameId)}`)
+  return reviews.map(formatReview)
 }
 
-export function createReview(review) {
-  return request('reviews.php', { method: 'POST', body: JSON.stringify(review) })
+export async function fetchRecentReviews(limit = 6) {
+  const { reviews } = await request(`reviews.php?recent=${limit}`)
+  return reviews.map(formatReview)
 }
 
-export function updateReview(id, changes) {
-  return request('reviews.php', { method: 'PUT', body: JSON.stringify({ id, ...changes }) })
+export function createReview({ gameId, rating, comment }) {
+  return request('reviews.php', json('POST', { game_id: gameId, rating, comment }))
+}
+
+export function updateReview(id, { rating, comment }) {
+  return request('reviews.php', json('PUT', { id, rating, comment }))
 }
 
 export function deleteReview(id) {
   return request(`reviews.php?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-// A3 favourite API contract: backend/public/api/favourites.php (implemented by Pedro).
-// GET -> { success: true, favourites: [<full game objects like games.php>] }.
-// POST { game_id: 2 }; DELETE ?game_id=2. All operations use PHP session auth.
+// ---------- Favourites ----------
+
 export async function fetchFavourites() {
-  const response = await request('favourites.php')
-  if (!Array.isArray(response.favourites)) {
-    throw new Error('Expected an array called "favourites" from the PHP API.')
-  }
-  return { favourites: response.favourites.map(formatGame) }
+  const { favourites } = await request('favourites.php')
+  return favourites.map(formatGame)
 }
 
 export function addFavourite(gameId) {
-  return request('favourites.php', {
-    method: 'POST', body: JSON.stringify({ game_id: gameId }),
-  })
+  return request('favourites.php', json('POST', { game_id: gameId }))
 }
 
 export function removeFavourite(gameId) {
   return request(`favourites.php?game_id=${encodeURIComponent(gameId)}`, { method: 'DELETE' })
-}
-
-
-// A3 Account Page contract — Pedro implements backend/public/api/account.php.
-// GET requires the PHP session and returns current user plus THEIR reviews.
-function formatAccountReview(item) {
-  const id = Number(item?.id)
-  const gameId = Number(item?.game_id)
-  const rating = Number(item?.rating)
-  if (!Number.isInteger(id) || !Number.isInteger(gameId) ||
-      !Number.isInteger(rating) || rating < 1 || rating > 5 ||
-      typeof item.game_title !== 'string' || typeof item.comment !== 'string') {
-    throw new Error('Invalid account review from PHP. Check the API contract.')
-  }
-  return {
-    id, game_id: gameId, game_title: item.game_title, rating,
-    comment: item.comment,
-    created_at: typeof item.created_at === 'string' ? item.created_at : '',
-  }
-}
-
-function formatAccountUser(item) {
-  if (!Number.isInteger(Number(item?.id)) ||
-      typeof item?.username !== 'string' || typeof item?.email !== 'string') {
-    throw new Error('Invalid account user from PHP. Check the API contract.')
-  }
-  return { id: Number(item.id), username: item.username, email: item.email }
-}
-
-export async function fetchAccount() {
-  const response = await request('account.php')
-  if (!Array.isArray(response.reviews)) {
-    throw new Error('Expected an array called "reviews" from the account API.')
-  }
-  return {
-    user: formatAccountUser(response.user),
-    reviews: response.reviews.map(formatAccountReview),
-  }
-}
-
-export async function updateAccountDetails({ username, email }) {
-  const response = await request('account.php', {
-    method: 'PUT', body: JSON.stringify({ username, email }),
-  })
-  return { user: formatAccountUser(response.user) }
-}
-
-export function changeAccountPassword({ current_password, new_password }) {
-  return request('account.php', {
-    method: 'PUT', body: JSON.stringify({ current_password, new_password }),
-  })
 }

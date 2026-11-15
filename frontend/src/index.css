@@ -1,2 +1,182 @@
-* { box-sizing: border-box; }
-body { margin: 0; }
+/* DPRate design tokens and base styles.
+   Brand: the dark navy and the violet of the DPRate logo (A1 proposal).
+   Type: Anton for headings and the big player scores, Manrope for reading and controls. */
+
+:root {
+  /* Surfaces: separated by small steps in tone, not by lines or shadows */
+  --ground: #0a0c13;
+  --surface-1: #11141f;
+  --surface-2: #181c2b;
+  --surface-3: #232839;
+  --surface-4: #2e3449;
+
+  /* Text */
+  --ink: #f3f4fa;
+  --ink-2: #c3c7d6;
+  --ink-3: #8b91a8;
+
+  /* Brand violet (sampled from the logo) */
+  --violet: #936efb;          /* text and icons on dark ground */
+  --violet-strong: #7c4dff;   /* buttons with white text (AA contrast) */
+  --violet-hover: #8d63ff;
+  --violet-soft: #251d45;
+
+  /* Player score bands, used on every score chip */
+  --score-high: #3ddc97;
+  --score-mid: #ffc23d;
+  --score-low: #ff6b6b;
+  --star: #ffc23d;
+  --star-empty: #5b6280;
+
+  --danger: #ff6b6b;
+  --success: #3ddc97;
+
+  /* Type */
+  --font-display: 'Anton', Impact, 'Arial Narrow', sans-serif;
+  --font-text: 'Manrope Variable', 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Layout */
+  --page-margin: clamp(16px, 4vw, 56px);
+  --page-max: 1440px;
+  --section-gap: clamp(72px, 9vw, 136px);
+  --radius: 4px;
+  --nav-height: 72px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --fast: 160ms;
+  --medium: 320ms;
+
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-height) + 16px);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+h1, h2, h3, p { margin: 0; }
+
+h1, h2, .display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+::selection { background: var(--violet-strong); color: #fff; }
+
+:focus-visible {
+  outline: 3px solid var(--violet);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: absolute; left: 16px; top: -64px; z-index: 100;
+  padding: 12px 18px; background: var(--violet-strong); color: #fff; font-weight: 700;
+  border-radius: var(--radius); transition: top var(--fast);
+}
+.skip-link:focus { top: 12px; }
+
+/* ---------- Page frame ---------- */
+.wrap {
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 46px; padding: 0 22px;
+  border: 0; border-radius: var(--radius);
+  font-weight: 700; font-size: 15px; line-height: 1;
+  white-space: nowrap;
+  transition: background var(--fast), color var(--fast), transform var(--fast);
+}
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+.btn:disabled { opacity: 0.55; }
+.btn-primary { background: var(--violet-strong); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--violet-hover); }
+.btn-secondary { background: var(--surface-3); color: var(--ink); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-4); }
+.btn-ghost { background: transparent; color: var(--ink-2); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.btn-danger { background: transparent; color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: #3a1820; }
+.btn-small { min-height: 36px; padding: 0 14px; font-size: 14px; }
+.btn-large { min-height: 54px; padding: 0 28px; font-size: 16px; }
+.btn.is-on { background: var(--violet-soft); color: #d9ccff; }
+.btn.is-on:hover:not(:disabled) { background: #31265d; }
+
+.link {
+  color: var(--violet); font-weight: 700;
+  background: none; border: 0; padding: 0;
+  transition: color var(--fast);
+}
+.link:hover { color: #b8a0ff; }
+
+/* ---------- Forms ---------- */
+.field { display: grid; gap: 8px; }
+.field label { font-weight: 700; font-size: 14px; color: var(--ink-2); }
+.input, .select, .textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  color: var(--ink);
+  transition: border-color var(--fast), background var(--fast);
+}
+.input::placeholder, .textarea::placeholder { color: var(--ink-3); }
+.input:hover, .select:hover, .textarea:hover { background: var(--surface-3); }
+.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--violet); background: var(--surface-2); }
+.textarea { min-height: 150px; resize: vertical; line-height: 1.55; }
+.select { appearance: none; padding-right: 40px; background-image: none; }
+.select-wrap { position: relative; }
+.select-wrap::after {
+  content: ''; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px;
+  border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg); pointer-events: none;
+}
+.field-hint { font-size: 13px; color: var(--ink-3); }
+.form-message { font-size: 14px; font-weight: 600; }
+.form-message.is-error { color: var(--danger); }
+.form-message.is-success { color: var(--success); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
