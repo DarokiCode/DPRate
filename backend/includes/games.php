@@ -16,7 +16,7 @@ const GAME_FROM = 'games
 // "release" is the name the React front end expects.
 const GAME_COLUMNS = 'games.id, games.title, genres.name AS genre,
     stats.avg_rating AS rating, COALESCE(stats.review_count, 0) AS review_count,
-    games.image, games.tags, games.description, games.developer, games.publisher,
+    games.image, games.banner, games.logo, games.tags, games.description, games.developer, games.publisher,
     games.release_text AS `release`, games.platforms';
 
 // Turns one database row into the game object defined in the API contract.
@@ -28,7 +28,9 @@ function format_game(array $row): array
         'genre' => $row['genre'],
         'rating' => $row['rating'] === null ? null : round((float) $row['rating'], 1),
         'review_count' => (int) $row['review_count'],
-        'image' => $row['image'],
+        'image' => $row['image'],     // portrait cover
+        'banner' => $row['banner'],   // wide artwork (null when the game has none)
+        'logo' => $row['logo'],       // transparent logo (null when the game has none)
         'tags' => array_values(array_filter(array_map('trim', explode(',', $row['tags'])))),
         'description' => $row['description'],
         'developer' => $row['developer'],

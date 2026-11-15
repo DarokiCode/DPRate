@@ -106,7 +106,7 @@ $games = expect('GET games.php lists games', call($guest, 'GET', 'games.php'), 2
     fn ($j) => is_array($j['games']) && count($j['games']) > 0);
 $first = $games['games'][0] ?? [];
 check('each game has every contract field',
-    array_keys($first) === ['id', 'title', 'genre', 'rating', 'review_count', 'image', 'tags', 'description', 'developer', 'publisher', 'release', 'platforms']);
+    array_keys($first) === ['id', 'title', 'genre', 'rating', 'review_count', 'image', 'banner', 'logo', 'tags', 'description', 'developer', 'publisher', 'release', 'platforms']);
 check('tags arrive as an array', is_array($first['tags'] ?? null));
 $gameId = 2;
 $before = game_by_id($games['games'], $gameId);
