@@ -276,7 +276,8 @@
 .hero.is-paused .hero-thumb.is-active::after { animation-play-state: paused; }
 
 /* ---------- Home: sections ---------- */
-.home-sections { display: grid; gap: var(--section-gap); padding-block: 72px var(--section-gap); }
+.home-sections { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--section-gap); padding-block: 72px var(--section-gap); }
+.shelf { min-width: 0; } /* the row scrolls inside the page instead of widening it */
 
 .shelf-arrow {
   display: inline-grid; place-items: center; width: 42px; height: 42px;
