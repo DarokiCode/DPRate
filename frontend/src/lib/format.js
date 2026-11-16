@@ -55,14 +55,3 @@ export function shortDate(date) {
 
 // Price in Australian dollars: 2.99 -> "A$2.99", 0 -> "Free".
 export const formatPrice = price => (price > 0 ? `A$${price.toFixed(2)}` : 'Free')
-
-// Rockstar's artwork is served by Contentful, which resizes on request:
-// phones get a 768px WebP instead of the 1920px JPEG. Other images are used as they are.
-export function responsiveImage(url) {
-  if (!url || !url.startsWith('https://images.ctfassets.net/')) return {}
-  const base = url.split('?')[0]
-  return {
-    srcSet: [768, 1280, 1920].map(width => `${base}?w=${width}&fm=webp&q=72 ${width}w`).join(', '),
-    sizes: '100vw',
-  }
-}

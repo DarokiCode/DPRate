@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ScoreChip } from './Score'
 import { useReducedMotion } from '../lib/hooks'
-import { plural, responsiveImage } from '../lib/format'
+import { plural } from '../lib/format'
 
 const SLIDE_MS = 7000
 
@@ -33,7 +33,6 @@ export default function HeroCarousel({ featured, user }) {
           <img
             key={item.id}
             src={item.banner || item.image}
-            {...responsiveImage(item.banner || item.image)}
             alt=""
             className={itemIndex === index ? 'is-active' : ''}
             loading={itemIndex === 0 ? 'eager' : 'lazy'}

@@ -210,7 +210,7 @@
 
 .game-card { display: grid; gap: 12px; align-content: start; transition: transform var(--medium) var(--ease-out); }
 .game-card-art {
-  order: -1; position: relative; aspect-ratio: 2 / 3; overflow: hidden;
+  position: relative; aspect-ratio: 2 / 3; overflow: hidden;
   background: var(--surface-2); border-radius: var(--radius);
 }
 .game-card-art img, .game-card-art .cover-fallback {

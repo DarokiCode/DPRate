@@ -7,7 +7,7 @@ import Countdown from '../components/Countdown'
 import AdSlot from '../components/AdSlot'
 import { fetchGame, fetchReviews } from '../api'
 import { useDocumentTitle } from '../lib/hooks'
-import { responsiveImage, shortDate } from '../lib/format'
+import { shortDate } from '../lib/format'
 
 export default function GamePage({ gameId, games, user, isFavourite, favouriteBusy, onToggleFavourite, onLogin, onGamesChanged, toast }) {
   const [game, setGame] = useState(() => games.find(item => item.id === gameId) || null)
@@ -69,7 +69,7 @@ export default function GamePage({ gameId, games, user, isFavourite, favouriteBu
     <article className="game-page">
       <div className="game-hero">
         <div className="game-backdrop" aria-hidden="true">
-          <img src={game.banner || game.image} {...responsiveImage(game.banner || game.image)} alt="" fetchPriority="high" decoding="async" />
+          <img src={game.banner || game.image} alt="" fetchPriority="high" decoding="async" />
         </div>
         <div className="wrap game-hero-inner">
           <div className="game-cover"><Cover src={game.image} title={game.title} eager /></div>
