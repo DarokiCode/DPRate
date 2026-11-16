@@ -31,8 +31,8 @@ sorting (top rated, most reviewed, release date, A to Z), a phone layout and red
 
 ## Business model (demo)
 
-DPRate is free to use. The A1 and A2 proposals planned two sources of income, advertising and subscriptions.
-The site shows both as a working demo: **no payment is ever taken**.
+DPRate is free to use. The team planned two sources of income, advertising and subscriptions, plus two smaller ones.
+The site shows all of them as a working demo: **no payment is ever taken**.
 
 | Income | How it works on the site |
 |---|---|
