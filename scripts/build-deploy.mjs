@@ -41,13 +41,23 @@ writeFileSync(join(htdocs, 'includes', '.htaccess'), [
 ].join('\n'))
 
 // 4. Site settings: no folder listings, safer headers, index.html as the home page.
+//    index.html must be checked again on every visit, so a new version shows at once (the host
+//    caches pages for 30 days by default). Files in assets/ get a new name on every build,
+//    so they can stay cached.
 writeFileSync(join(htdocs, '.htaccess'), [
   'Options -Indexes',
   'DirectoryIndex index.html',
+  '<IfModule mod_expires.c>',
+  '  ExpiresActive On',
+  '  ExpiresByType text/html "access plus 0 seconds"',
+  '</IfModule>',
   '<IfModule mod_headers.c>',
-  '  Header always set X-Content-Type-Options "nosniff"',
-  '  Header always set Referrer-Policy "strict-origin-when-cross-origin"',
-  '  Header always set X-Frame-Options "SAMEORIGIN"',
+  '  Header set X-Content-Type-Options "nosniff"',
+  '  Header set Referrer-Policy "strict-origin-when-cross-origin"',
+  '  Header set X-Frame-Options "SAMEORIGIN"',
+  '  <FilesMatch "\\.html$">',
+  '    Header set Cache-Control "no-cache"',
+  '  </FilesMatch>',
   '</IfModule>', '',
 ].join('\n'))
 
