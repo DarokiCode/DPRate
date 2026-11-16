@@ -13,7 +13,7 @@ export default function Footer({ genres, user }) {
               <a href="#browse">All games</a>
               <a href="#browse?sort=top">Top rated</a>
               <a href="#browse?sort=reviews">Most reviewed</a>
-              <a href="#browse?sort=new">Newest releases</a>
+              <a href="#browse?sort=new">Newest and upcoming</a>
             </div>
             <div>
               <h2 className="footer-heading">Genres</h2>
@@ -26,12 +26,14 @@ export default function Footer({ genres, user }) {
               ) : (
                 <><a href="#login">Log in</a><a href="#register">Create an account</a></>
               )}
+              <a href="#plans">Plans and prices</a>
+              <a href="#plans?section=advertise">Advertise on DPRate</a>
             </div>
           </nav>
         </div>
         <div className="footer-bottom">
           <p>DPRate is a student project for INT1059 Advanced Web at AIT, built by Team Guava (Davi Rocha and Pedro Meloni), 2026.</p>
-          <p>Game artwork and logos belong to their publishers and are shown for review purposes. Game details come from Wikipedia and the publishers’ pages.</p>
+          <p>Game artwork and logos belong to their publishers and are shown for review purposes. Release dates, developers, publishers and platforms come from each game’s official website or its official store page.</p>
         </div>
       </div>
     </footer>

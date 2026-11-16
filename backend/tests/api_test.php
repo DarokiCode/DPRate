@@ -251,13 +251,13 @@ expect('new players start on the Standard plan', call($a, 'GET', 'session.php'),
     fn ($j) => $j['user']['plan'] === 'standard' && $j['user']['avatar'] === null);
 expect('a Standard picture can be chosen', call($a, 'PUT', 'account.php', ['avatar' => 'rocket']), 200,
     fn ($j) => $j['user']['avatar'] === 'rocket');
-expect('a Gold picture is refused on Standard (403)', call($a, 'PUT', 'account.php', ['avatar' => 'dragon']), 403);
+expect('a Gold picture is refused on Standard (403)', call($a, 'PUT', 'account.php', ['avatar' => 'gem']), 403);
 expect('an unknown picture is 422', call($a, 'PUT', 'account.php', ['avatar' => 'not-a-picture']), 422);
 expect('an unknown plan is 422', call($a, 'PUT', 'account.php', ['plan' => 'platinum']), 422);
 expect('player A moves to Gold (demo, no payment)', call($a, 'PUT', 'account.php', ['plan' => 'gold']), 200,
     fn ($j) => $j['user']['plan'] === 'gold');
-expect('a Gold picture works on Gold', call($a, 'PUT', 'account.php', ['avatar' => 'dragon']), 200,
-    fn ($j) => $j['user']['avatar'] === 'dragon');
+expect('a Gold picture works on Gold', call($a, 'PUT', 'account.php', ['avatar' => 'gem']), 200,
+    fn ($j) => $j['user']['avatar'] === 'gem');
 [, $mine] = call($a, 'GET', 'account.php');
 $reviewedId = $mine['reviews'][0]['game_id'] ?? null;
 if ($reviewedId === null) {
@@ -265,7 +265,7 @@ if ($reviewedId === null) {
     $reviewedId = 3;
 }
 expect('reviews show the author plan and picture', call($guest, 'GET', "reviews.php?game_id=$reviewedId"), 200,
-    fn ($j) => count(array_filter($j['reviews'], fn ($r) => $r['username'] === $userA['username'] && $r['plan'] === 'gold' && $r['avatar'] === 'dragon')) === 1);
+    fn ($j) => count(array_filter($j['reviews'], fn ($r) => $r['username'] === $userA['username'] && $r['plan'] === 'gold' && $r['avatar'] === 'gem')) === 1);
 expect('moving back to Silver drops the Gold-only picture', call($a, 'PUT', 'account.php', ['plan' => 'silver']), 200,
     fn ($j) => $j['user']['plan'] === 'silver' && $j['user']['avatar'] === null);
 expect('two changes in one request are refused (400)', call($a, 'PUT', 'account.php', ['plan' => 'gold', 'avatar' => 'rocket']), 400);

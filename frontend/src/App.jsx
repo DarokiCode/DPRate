@@ -9,6 +9,7 @@ import GamePage from './pages/GamePage'
 import AuthPage from './pages/AuthPage'
 import FavouritesPage from './pages/FavouritesPage'
 import AccountPage from './pages/AccountPage'
+import PlansPage from './pages/PlansPage'
 import { addFavourite, fetchFavourites, fetchGames, fetchGenres, getSession, logoutUser, removeFavourite } from './api'
 
 // The page lives in the address after the # (for example #game/8 or #browse?genre=RPG).
@@ -22,7 +23,7 @@ function readRoute() {
   const params = new URLSearchParams(query)
   const game = path.match(/^game\/(\d+)$/)
   if (game) return { name: 'game', gameId: Number(game[1]), params, stamp }
-  if (['browse', 'login', 'register', 'favourites', 'account'].includes(path)) return { name: path, params, stamp }
+  if (['browse', 'login', 'register', 'favourites', 'account', 'plans'].includes(path)) return { name: path, params, stamp }
   return { name: 'home', params, stamp }
 }
 
@@ -198,6 +199,8 @@ export default function App() {
       <AccountPage user={user} sessionReady={sessionReady} games={games} favouriteCount={favourites.length}
         onUserChanged={setUser} onGamesChanged={refreshGames} toast={toast} />
     )
+  } else if (route.name === 'plans') {
+    page = <PlansPage key={route.stamp} user={user} sessionReady={sessionReady} params={route.params} onUserChanged={setUser} toast={toast} />
   } else {
     page = <HomePage games={games} genres={genres} user={user} />
   }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ScoreChip } from './Score'
 import { useReducedMotion } from '../lib/hooks'
-import { plural } from '../lib/format'
+import { plural, responsiveImage } from '../lib/format'
 
 const SLIDE_MS = 7000
 
@@ -33,9 +33,11 @@ export default function HeroCarousel({ featured, user }) {
           <img
             key={item.id}
             src={item.banner || item.image}
+            {...responsiveImage(item.banner || item.image)}
             alt=""
             className={itemIndex === index ? 'is-active' : ''}
             loading={itemIndex === 0 ? 'eager' : 'lazy'}
+            fetchPriority={itemIndex === 0 ? 'high' : 'low'}
             decoding="async"
           />
         ))}
@@ -59,14 +61,17 @@ export default function HeroCarousel({ featured, user }) {
         {game && (
           <div className="hero-feature">
             <a className="hero-feature-game" href={`#game/${game.id}`} key={game.id}>
+              {game.sponsored && <span className="sponsored-tag">Sponsored · demo</span>}
               {game.logo
                 ? <img className="hero-logo" src={game.logo} alt={game.title} />
                 : <span className="hero-feature-title">{game.title}</span>}
               <span className="hero-feature-facts">
-                <ScoreChip rating={game.rating} size="large" />
+                <ScoreChip rating={game.rating} size="large" upcoming={!game.released} />
                 <span>
-                  <strong>{game.title}</strong>
-                  <span>{game.genre} · {game.release} · {game.rating == null ? 'Be the first to rate it' : plural(game.reviewCount, 'player review')}</span>
+                  {game.logo && <strong>{game.title}</strong>}
+                  <span>{game.genre} · {!game.released
+                    ? `Out ${game.releaseLabel}, reviews open that day`
+                    : `${game.release} · ${game.rating == null ? 'Be the first to rate it' : plural(game.reviewCount, 'player review')}`}</span>
                 </span>
               </span>
             </a>

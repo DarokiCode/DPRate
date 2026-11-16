@@ -72,8 +72,15 @@ function formatGame(game) {
     description: String(game.description || ''),
     developer: String(game.developer || 'Not available'),
     publisher: String(game.publisher || 'Not available'),
-    release: String(game.release || 'Not available'),
+    release: String(game.release || ''),                       // year, for cards
+    releaseLabel: String(game.release_label || game.release || 'Not available'), // full date for the game page
+    releaseDate: typeof game.release_date === 'string' ? game.release_date : '',
+    released: game.released !== false,                          // false = coming soon, reviews closed
     platforms: String(game.platforms || 'Not available'),
+    sponsored: game.sponsored === true,                         // paid home page spot (demo)
+    stores: Array.isArray(game.stores)
+      ? game.stores.filter(store => /^https:\/\//.test(store?.url)).map(store => ({ name: String(store.store), url: store.url }))
+      : [],
   }
 }
 
@@ -88,6 +95,8 @@ function formatReview(item) {
     gameId: Number(item.game_id),
     userId: Number(item.user_id),
     username: String(item.username || ''),
+    plan: ['silver', 'gold'].includes(item.plan) ? item.plan : 'standard',
+    avatar: typeof item.avatar === 'string' ? item.avatar : null,
     rating,
     comment: item.comment,
     createdAt: typeof item.created_at === 'string' ? item.created_at : '',
@@ -98,7 +107,13 @@ function formatReview(item) {
 
 function formatUser(item) {
   if (!item) return null
-  return { id: Number(item.id), username: String(item.username), email: String(item.email) }
+  return {
+    id: Number(item.id),
+    username: String(item.username),
+    email: String(item.email),
+    plan: ['silver', 'gold'].includes(item.plan) ? item.plan : 'standard',
+    avatar: typeof item.avatar === 'string' ? item.avatar : null,
+  }
 }
 
 // ---------- Games and genres ----------
@@ -144,6 +159,28 @@ export async function fetchAccount() {
 
 export async function updateAccountDetails({ username, email }) {
   return formatUser((await request('account.php', json('PUT', { username, email }))).user)
+}
+
+// Plans: demo of the subscription model, no payment is taken.
+export async function changePlan(plan) {
+  return formatUser((await request('account.php', json('PUT', { plan }))).user)
+}
+
+// null goes back to the coloured initials.
+export async function changeAvatar(avatar) {
+  return formatUser((await request('account.php', json('PUT', { avatar }))).user)
+}
+
+export async function fetchPlans() {
+  const { plans } = await request('plans.php')
+  return plans.map(plan => ({
+    id: String(plan.id),
+    name: String(plan.name),
+    price: Number(plan.price) || 0,
+    ads: plan.ads === true,
+    perks: Array.isArray(plan.perks) ? plan.perks.map(String) : [],
+    avatars: Array.isArray(plan.avatars) ? plan.avatars.map(String) : [],
+  }))
 }
 
 export function changeAccountPassword({ currentPassword, newPassword }) {

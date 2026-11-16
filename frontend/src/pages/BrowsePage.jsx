@@ -8,7 +8,7 @@ const SORTS = [
   { id: 'featured', label: 'Featured (shuffled)' },
   { id: 'top', label: 'Top rated' },
   { id: 'reviews', label: 'Most reviewed' },
-  { id: 'new', label: 'Newest releases' },
+  { id: 'new', label: 'Release date, newest first' },
   { id: 'title', label: 'Title A to Z' },
 ]
 
@@ -16,7 +16,7 @@ const SORTERS = {
   featured: () => 0,
   top: (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || b.reviewCount - a.reviewCount,
   reviews: (a, b) => b.reviewCount - a.reviewCount || (b.rating ?? -1) - (a.rating ?? -1),
-  new: (a, b) => Number(b.release) - Number(a.release) || a.title.localeCompare(b.title),
+  new: (a, b) => b.releaseDate.localeCompare(a.releaseDate) || a.title.localeCompare(b.title),
   title: (a, b) => a.title.localeCompare(b.title),
 }
 
@@ -79,9 +79,12 @@ export default function BrowsePage({ games, genres, params }) {
       </div>
 
       {results.length > 0 ? (
+        <>
+        <h2 className="sr-only">Results</h2>
         <div className="game-grid browse-grid">
           {results.map((game, index) => <GameCard key={game.id} game={game} eager={index < 6} />)}
         </div>
+        </>
       ) : (
         <div className="empty-panel">
           <h2>No games found</h2>

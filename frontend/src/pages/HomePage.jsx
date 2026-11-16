@@ -4,7 +4,8 @@ import Shelf from '../components/Shelf'
 import GameCard from '../components/GameCard'
 import Cover from '../components/Cover'
 import { Stars } from '../components/Score'
-import { Avatar } from '../components/Navbar'
+import Avatar, { PlanBadge } from '../components/Avatar'
+import AdSlot from '../components/AdSlot'
 import { fetchRecentReviews } from '../api'
 import { formatDate, plural } from '../lib/format'
 import { useDocumentTitle } from '../lib/hooks'
@@ -22,7 +23,11 @@ export default function HomePage({ games, genres, user }) {
   }, [])
 
   // games.php sends the games in a random order, so the home page changes on every visit.
-  const featured = useMemo(() => games.filter(game => game.banner).slice(0, 5), [games])
+  // The sponsored game (paid placement, part of the business model) always comes first.
+  const featured = useMemo(
+    () => games.filter(game => game.banner).sort((a, b) => Number(b.sponsored) - Number(a.sponsored)).slice(0, 5),
+    [games],
+  )
   const topRated = useMemo(
     () => games.filter(game => game.rating != null)
       .sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount)
@@ -98,8 +103,8 @@ export default function HomePage({ games, genres, user }) {
                     <span className="sr-only">{review.rating} out of 5 stars</span>
                     <span className="feed-comment">{review.comment}</span>
                     <span className="feed-author">
-                      <Avatar name={review.username} />
-                      <span>{review.username} · {formatDate(review.createdAt)}</span>
+                      <Avatar name={review.username} avatar={review.avatar} plan={review.plan} />
+                      <span>{review.username} <PlanBadge plan={review.plan} /> · {formatDate(review.createdAt)}</span>
                     </span>
                   </span>
                 </a>
@@ -107,6 +112,8 @@ export default function HomePage({ games, genres, user }) {
             </div>
           )}
         </section>
+
+        <AdSlot user={user} kind="plans" />
 
         <section className="discover" aria-labelledby="discover-title">
           <div className="section-head">

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { createReview, deleteReview, updateReview } from '../api'
 import { Stars } from './Score'
-import { Avatar } from './Navbar'
+import Avatar, { PlanBadge } from './Avatar'
+import Countdown from './Countdown'
 import { average, formatDate, MAX_REVIEW_WORDS, plural, wordCount } from '../lib/format'
 
 const SORTS = {
@@ -44,7 +45,7 @@ function StarPicker({ value, onChange, disabled }) {
   )
 }
 
-export default function ReviewSection({ game, reviews, status, user, onRetry, onLogin, onChanged, toast }) {
+export default function ReviewSection({ game, reviews, status, user, onRetry, onLogin, onChanged, onReleased, toast }) {
   const [sort, setSort] = useState('newest')
   const [editingId, setEditingId] = useState(null)
   const [rating, setRating] = useState(0)
@@ -56,7 +57,7 @@ export default function ReviewSection({ game, reviews, status, user, onRetry, on
   const myReview = user ? reviews.find(review => review.userId === user.id) : null
   const others = reviews.filter(review => review.id !== myReview?.id).sort(SORTS[sort])
   const words = wordCount(comment)
-  const formOpen = user && status === 'ready' && (!myReview || editingId === myReview.id)
+  const formOpen = game.released && user && status === 'ready' && (!myReview || editingId === myReview.id)
 
   // The live thing: what the player score becomes with this rating, before posting.
   const preview = useMemo(() => {
@@ -117,11 +118,15 @@ export default function ReviewSection({ game, reviews, status, user, onRetry, on
 
   function renderReview(review, mine = false) {
     return (
-      <article key={review.id} className={`review-card ${mine ? 'is-mine' : ''}`}>
+      <article key={review.id} className={`review-card ${mine ? 'is-mine' : ''} ${review.plan === 'gold' ? 'is-gold' : ''}`}>
         <header className="review-head">
-          <Avatar name={review.username} size="medium" />
+          <Avatar name={review.username} avatar={review.avatar} plan={review.plan} size="medium" />
           <div>
-            <strong>{review.username}{mine && <span className="mine-tag"> (you)</span>}</strong>
+            <strong className="review-author">
+              {review.username}
+              <PlanBadge plan={review.plan} />
+              {mine && <span className="mine-tag">(you)</span>}
+            </strong>
             <span className="review-date">{formatDate(review.createdAt)}</span>
           </div>
           <span className="review-stars"><Stars value={review.rating} size={18} /><span className="sr-only">{review.rating} out of 5 stars</span></span>
@@ -173,7 +178,9 @@ export default function ReviewSection({ game, reviews, status, user, onRetry, on
         )}
         {status === 'ready' && reviews.length === 0 && (
           <div className="empty-panel">
-            <p>Nobody has reviewed {game.title} yet. Your review will be the first one here.</p>
+            <p>{game.released
+              ? `Nobody has reviewed ${game.title} yet. Your review will be the first one here.`
+              : `${game.title} comes out on ${game.releaseLabel}. Player reviews open that day, so every score comes from someone who has played it.`}</p>
           </div>
         )}
         {myReview && editingId !== myReview.id && renderReview(myReview, true)}
@@ -183,14 +190,21 @@ export default function ReviewSection({ game, reviews, status, user, onRetry, on
       <aside className="review-form-panel" id="write-review" aria-labelledby="write-title">
         <h2 id="write-title">{editingId ? 'Edit your review' : `Rate ${game.title}`}</h2>
 
-        {!user && (
+        {!game.released && (
+          <div className="review-locked">
+            <p>Reviews open on <strong>{game.releaseLabel}</strong>, when the game comes out. Nobody can rate a game before it can be played.</p>
+            <Countdown date={game.releaseDate} onReached={onReleased} />
+          </div>
+        )}
+
+        {game.released && !user && (
           <div className="review-guest">
             <p>Log in to give your score and write a review. It takes a minute to create an account.</p>
             <button type="button" className="btn btn-primary btn-large" onClick={onLogin}>Log in to rate</button>
           </div>
         )}
 
-        {user && myReview && editingId !== myReview.id && (
+        {game.released && user && myReview && editingId !== myReview.id && (
           <div className="review-guest">
             <p>You rated this game {plural(myReview.rating, 'star')}. You can change your score or your words at any time.</p>
             <button type="button" className="btn btn-secondary btn-large" onClick={() => startEditing(myReview)}>Edit my review</button>

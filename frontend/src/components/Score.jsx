@@ -1,11 +1,13 @@
 import { formatScore, plural, scoreBand } from '../lib/format'
 
 // Coloured chip with the players' average score.
-export function ScoreChip({ rating, size = 'normal' }) {
-  const label = rating == null ? 'Not rated yet' : `Player score ${rating.toFixed(1)} out of 5`
+// Upcoming games show "Soon": they cannot be rated before release day.
+// The hidden words finish the sentence for screen readers ("4.3 player score").
+export function ScoreChip({ rating, size = 'normal', upcoming = false }) {
+  const extra = upcoming ? ', not out yet' : rating == null ? ', not rated yet' : ' player score'
   return (
-    <span className={`score-chip score-${scoreBand(rating)} score-chip-${size}`} aria-label={label} title={label}>
-      {formatScore(rating)}
+    <span className={`score-chip score-${upcoming ? 'soon' : scoreBand(rating)} score-chip-${size}`}>
+      {upcoming ? 'Soon' : formatScore(rating)}<span className="sr-only">{extra}</span>
     </span>
   )
 }
@@ -22,7 +24,7 @@ export function Stars({ value, size = 18 }) {
 }
 
 // Big scoreboard block: average, stars, review count and how the stars are spread.
-export function ScoreBoard({ rating, count, reviews = null }) {
+export function ScoreBoard({ rating, count, reviews = null, upcoming = false }) {
   const spread = [5, 4, 3, 2, 1].map(star => ({
     star,
     total: reviews ? reviews.filter(review => review.rating === star).length : 0,
@@ -30,11 +32,15 @@ export function ScoreBoard({ rating, count, reviews = null }) {
 
   return (
     <div className="scoreboard">
-      <div className="scoreboard-main">
-        <span className={`scoreboard-number score-text-${scoreBand(rating)}`}>{rating == null ? '0.0' : rating.toFixed(1)}</span>
+      <div className={`scoreboard-main ${rating == null ? 'is-empty' : ''}`}>
+        {rating == null ? (
+          <span className="scoreboard-empty">{upcoming ? 'Not out yet' : 'No score yet'}</span>
+        ) : (
+          <span className={`scoreboard-number score-text-${scoreBand(rating)}`}>{rating.toFixed(1)}</span>
+        )}
         <div className="scoreboard-meta">
           <Stars value={rating} size={22} />
-          <span>{rating == null ? 'Not rated yet' : `from ${plural(count, 'player review')}`}</span>
+          <span>{rating != null ? `from ${plural(count, 'player review')}` : upcoming ? 'Scores open on release day' : 'Be the first player to rate it'}</span>
         </div>
       </div>
       {reviews && reviews.length > 0 && (

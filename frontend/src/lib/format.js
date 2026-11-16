@@ -39,3 +39,30 @@ export function avatarColour(name = '') {
 export const wordCount = text => (text.trim() ? text.trim().split(/\s+/).length : 0)
 
 export const MAX_REVIEW_WORDS = 500
+
+// "2026-11-19" -> midnight local time of the player's device on that day
+// (Rockstar launches GTA VI at midnight local time in every region).
+export function releaseMoment(date) {
+  const [year, month, day] = String(date).split('-').map(Number)
+  return year ? new Date(year, month - 1, day) : null
+}
+
+// "2026-11-19" -> "19 Nov" for small labels on cards.
+export function shortDate(date) {
+  const moment = releaseMoment(date)
+  return moment ? new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short' }).format(moment) : ''
+}
+
+// Price in Australian dollars: 2.99 -> "A$2.99", 0 -> "Free".
+export const formatPrice = price => (price > 0 ? `A$${price.toFixed(2)}` : 'Free')
+
+// Rockstar's artwork is served by Contentful, which resizes on request:
+// phones get a 768px WebP instead of the 1920px JPEG. Other images are used as they are.
+export function responsiveImage(url) {
+  if (!url || !url.startsWith('https://images.ctfassets.net/')) return {}
+  const base = url.split('?')[0]
+  return {
+    srcSet: [768, 1280, 1920].map(width => `${base}?w=${width}&fm=webp&q=72 ${width}w`).join(', '),
+    sizes: '100vw',
+  }
+}

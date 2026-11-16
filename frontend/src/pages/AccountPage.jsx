@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { changeAccountPassword, deleteReview, fetchAccount, updateAccountDetails, updateReview } from '../api'
-import { Avatar } from '../components/Navbar'
+import { changeAccountPassword, changeAvatar, deleteReview, fetchAccount, fetchPlans, updateAccountDetails, updateReview } from '../api'
+import Avatar, { AvatarArt, PlanBadge } from '../components/Avatar'
 import Cover from '../components/Cover'
 import { Stars } from '../components/Score'
-import { average, formatDate, MAX_REVIEW_WORDS, plural, wordCount } from '../lib/format'
+import { average, formatDate, formatPrice, MAX_REVIEW_WORDS, plural, wordCount } from '../lib/format'
 import { useDocumentTitle } from '../lib/hooks'
 
 export default function AccountPage({ user, sessionReady, games, favouriteCount, onUserChanged, onGamesChanged, toast }) {
@@ -17,6 +17,9 @@ export default function AccountPage({ user, sessionReady, games, favouriteCount,
   const [editing, setEditing] = useState(null) // { id, rating, comment }
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [reviewBusy, setReviewBusy] = useState(false)
+  const [plans, setPlans] = useState([])
+  const [picked, setPicked] = useState(user?.avatar ?? '')
+  const [avatarState, setAvatarState] = useState({ busy: false, message: '', type: '' })
 
   async function load() {
     try {
@@ -34,6 +37,13 @@ export default function AccountPage({ user, sessionReady, games, favouriteCount,
     // Reload only when another account logs in.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
+
+  useEffect(() => {
+    fetchPlans().then(setPlans).catch(() => setPlans([]))
+  }, [])
+
+  // A plan change can reset the picture (a Gold picture is not kept on Standard).
+  useEffect(() => { setPicked(user?.avatar ?? '') }, [user?.avatar])
 
   if (!user) {
     return (
@@ -55,6 +65,18 @@ export default function AccountPage({ user, sessionReady, games, favouriteCount,
       await load()
     } catch (error) {
       setProfileState({ busy: false, message: error.message, type: 'error' })
+    }
+  }
+
+  async function saveAvatar(event) {
+    event.preventDefault()
+    setAvatarState({ busy: true, message: '', type: '' })
+    try {
+      const updated = await changeAvatar(picked || null)
+      onUserChanged(updated)
+      setAvatarState({ busy: false, message: 'Your profile picture was saved.', type: 'success' })
+    } catch (error) {
+      setAvatarState({ busy: false, message: error.message, type: 'error' })
     }
   }
 
@@ -107,11 +129,14 @@ export default function AccountPage({ user, sessionReady, games, favouriteCount,
   const coverOf = gameId => games.find(game => game.id === gameId)?.image
   const givenAverage = average(reviews.map(review => review.rating))
   const editWords = editing ? wordCount(editing.comment) : 0
+  const planOrder = plans.map(plan => plan.id)
+  const myLevel = Math.max(0, planOrder.indexOf(user.plan))
+  const myPlan = plans.find(plan => plan.id === user.plan)
 
   return (
     <div className="wrap account-page">
       <header className="account-head">
-        <Avatar name={user.username} size="large" />
+        <Avatar name={user.username} avatar={user.avatar} plan={user.plan} size="large" />
         <div>
           <h1>{user.username}</h1>
           <p>{user.email}</p>
@@ -197,6 +222,59 @@ export default function AccountPage({ user, sessionReady, games, favouriteCount,
         </section>
 
         <div className="account-forms">
+          <section className="panel" aria-labelledby="plan-title">
+            <h2 id="plan-title">Plan and profile picture</h2>
+            <div className="account-plan">
+              <p>
+                You are on <strong>{myPlan?.name || 'Standard'}</strong> <PlanBadge plan={user.plan} />
+                {myPlan && myPlan.price > 0 ? ` (${formatPrice(myPlan.price)} a month, demo)` : ' (free)'}.
+                {user.plan === 'standard' ? ' You see ads.' : ' No ads for you.'}
+              </p>
+              <a className="btn btn-secondary btn-small" href="#plans">Compare plans</a>
+            </div>
+
+            {plans.length > 0 && (
+              <form className="stack" onSubmit={saveAvatar}>
+                <fieldset className="avatar-picker">
+                  <legend>Profile picture</legend>
+                  {plans.map((plan, level) => {
+                    const locked = level > myLevel
+                    return (
+                      <div key={plan.id} className="avatar-group">
+                        <span className="avatar-group-name">
+                          {plan.name}{locked ? <span className="avatar-group-note"> · comes with {plan.name}</span> : null}
+                        </span>
+                        <div className="avatar-row">
+                          {level === 0 && (
+                            <label className="avatar-option" title="Your initial">
+                              <input type="radio" name="avatar" value="" checked={picked === ''} onChange={() => setPicked('')} />
+                              <Avatar name={user.username} size="medium" />
+                              <span className="sr-only">Your initial</span>
+                            </label>
+                          )}
+                          {plan.avatars.map(id => {
+                            const name = id.charAt(0).toUpperCase() + id.slice(1)
+                            return (
+                              <label key={id} className={`avatar-option ${locked ? 'is-locked' : ''}`} title={locked ? `${name} comes with ${plan.name}` : name}>
+                                <input type="radio" name="avatar" value={id} checked={picked === id} disabled={locked} onChange={() => setPicked(id)} />
+                                <span className="avatar avatar-medium avatar-art"><AvatarArt id={id} /></span>
+                                <span className="sr-only">{name}{locked ? `, comes with ${plan.name}` : ''}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </fieldset>
+                {avatarState.message && <p className={`form-message is-${avatarState.type}`} role="status">{avatarState.message}</p>}
+                <button type="submit" className="btn btn-primary" disabled={avatarState.busy || picked === (user.avatar ?? '')}>
+                  {avatarState.busy ? 'Saving…' : 'Save picture'}
+                </button>
+              </form>
+            )}
+          </section>
+
           <section className="panel" aria-labelledby="details-title">
             <h2 id="details-title">Profile details</h2>
             <form className="stack" onSubmit={saveProfile}>

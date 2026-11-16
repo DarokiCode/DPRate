@@ -1,15 +1,7 @@
 import { useState } from 'react'
 import Dropdown from './Dropdown'
 import SearchBox from './SearchBox'
-import { avatarColour } from '../lib/format'
-
-export function Avatar({ name, size = 'small' }) {
-  return (
-    <span className={`avatar avatar-${size}`} style={{ background: avatarColour(name) }} aria-hidden="true">
-      {(name || '?').charAt(0).toUpperCase()}
-    </span>
-  )
-}
+import Avatar from './Avatar'
 
 export default function Navbar({ user, games, genres, favouriteCount, routeName, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -29,7 +21,7 @@ export default function Navbar({ user, games, genres, favouriteCount, routeName,
             <a className="dropdown-item" href="#browse">All games <span>{games.length}</span></a>
             <a className="dropdown-item" href="#browse?sort=top">Top rated</a>
             <a className="dropdown-item" href="#browse?sort=reviews">Most reviewed</a>
-            <a className="dropdown-item" href="#browse?sort=new">Newest releases</a>
+            <a className="dropdown-item" href="#browse?sort=new">Newest and upcoming</a>
           </Dropdown>
           <Dropdown id="menu-genres" label="Genres">
             {genres.map(genre => (
@@ -38,6 +30,7 @@ export default function Navbar({ user, games, genres, favouriteCount, routeName,
               </a>
             ))}
           </Dropdown>
+          <a className="nav-link" href="#plans" aria-current={current('plans')}>Plans</a>
           {user && (
             <a className="nav-link" href="#favourites" aria-current={current('favourites')}>
               Favourites <span className="nav-count" aria-label={`${favouriteCount} saved`}>{favouriteCount}</span>
@@ -53,10 +46,11 @@ export default function Navbar({ user, games, genres, favouriteCount, routeName,
               id="menu-user"
               align="right"
               buttonClass="nav-user"
-              label={<><Avatar name={user.username} /><span className="nav-username">{user.username}</span></>}
+              label={<><Avatar name={user.username} avatar={user.avatar} plan={user.plan} /><span className="nav-username">{user.username}</span></>}
             >
               <a className="dropdown-item" href="#account">My account</a>
               <a className="dropdown-item" href="#favourites">My favourites</a>
+              <a className="dropdown-item" href="#plans">My plan <span>{user.plan === 'standard' ? 'Standard' : user.plan === 'silver' ? 'Silver' : 'Gold'}</span></a>
               <button type="button" className="dropdown-item" onClick={onLogout}>Log out</button>
             </Dropdown>
           ) : (
@@ -81,6 +75,7 @@ export default function Navbar({ user, games, genres, favouriteCount, routeName,
               <a href="#home">Home</a>
               <a href="#browse">All games</a>
               <a href="#browse?sort=top">Top rated</a>
+              <a href="#plans">Plans</a>
               {user && <a href="#favourites">My favourites ({favouriteCount})</a>}
               {user && <a href="#account">My account</a>}
             </nav>

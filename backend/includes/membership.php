@@ -42,7 +42,7 @@ const PLANS = [
 const AVATARS = [
     'standard' => ['controller', 'joystick', 'sword', 'shield', 'potion', 'ghost', 'rocket', 'heart'],
     'silver' => ['wizard', 'knight', 'robot', 'alien'],
-    'gold' => ['crown', 'dragon', 'trophy', 'phoenix'],
+    'gold' => ['crown', 'gem', 'trophy', 'medal'],
 ];
 
 const PLAN_ORDER = ['standard', 'silver', 'gold'];

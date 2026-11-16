@@ -72,7 +72,7 @@ export default function SearchBox({ games, id: givenId, onDone }) {
             >
               <Cover src={game.image} title={game.title} className="search-thumb" />
               <span className="search-text"><strong>{game.title}</strong><span>{game.genre} · {game.release}</span></span>
-              <ScoreChip rating={game.rating} size="small" />
+              <ScoreChip rating={game.rating} size="small" upcoming={!game.released} />
             </a>
           ))}
           {results.length > 0 && (
