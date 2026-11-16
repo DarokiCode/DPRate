@@ -106,7 +106,18 @@ $games = expect('GET games.php lists games', call($guest, 'GET', 'games.php'), 2
     fn ($j) => is_array($j['games']) && count($j['games']) > 0);
 $first = $games['games'][0] ?? [];
 check('each game has every contract field',
-    array_keys($first) === ['id', 'title', 'genre', 'rating', 'review_count', 'image', 'banner', 'logo', 'tags', 'description', 'developer', 'publisher', 'release', 'platforms']);
+    array_keys($first) === ['id', 'title', 'genre', 'rating', 'review_count', 'image', 'banner', 'logo', 'tags', 'description', 'developer', 'publisher', 'release', 'release_label', 'release_date', 'released', 'platforms', 'sponsored']);
+check('release is the year and release_date is a full date',
+    preg_match('/^\d{4}$/', (string) ($first['release'] ?? '')) === 1 && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($first['release_date'] ?? '')) === 1);
+$gta = game_by_id($games['games'], 14);
+check('Grand Theft Auto VI is in the catalogue and marked sponsored', $gta !== null && $gta['sponsored'] === true);
+check('released matches the release date (Sydney time)',
+    $gta !== null && $gta['released'] === ((new DateTimeImmutable('now', new DateTimeZone('Australia/Sydney')))->format('Y-m-d') >= $gta['release_date']));
+expect('game.php includes the official store links', call($guest, 'GET', 'game.php?id=8'), 200,
+    fn ($j) => count($j['game']['stores']) >= 1 && str_starts_with($j['game']['stores'][0]['url'], 'https://'));
+expect('plans.php lists Standard, Silver and Gold', call($guest, 'GET', 'plans.php'), 200,
+    fn ($j) => array_column($j['plans'], 'id') === ['standard', 'silver', 'gold'] && $j['plans'][0]['price'] === 0.0
+        && $j['plans'][1]['price'] === 2.99 && $j['plans'][2]['price'] === 5.99);
 check('tags arrive as an array', is_array($first['tags'] ?? null));
 $gameId = 2;
 $before = game_by_id($games['games'], $gameId);
@@ -192,7 +203,7 @@ check('review_count goes down after deleting', $game['review_count'] === $startC
 // Exact average on a game nobody else has reviewed in this test.
 $fresh = null;
 foreach (call($guest, 'GET', 'games.php')[1]['games'] as $candidate) {
-    if ($candidate['review_count'] === 0) {
+    if ($candidate['review_count'] === 0 && $candidate['released']) { // games not out yet cannot be reviewed
         $fresh = $candidate;
         break;
     }
@@ -222,6 +233,43 @@ call($b, 'DELETE', 'favourites.php?game_id=2');
 expect('B removing game 2 does not touch A\'s list', call($a, 'GET', 'favourites.php'), 200, fn ($j) => count($j['favourites']) === 1);
 expect('player A removes game 2', call($a, 'DELETE', 'favourites.php?game_id=2'), 200);
 expect('the list is empty again', call($a, 'GET', 'favourites.php'), 200, fn ($j) => $j['favourites'] === []);
+
+// ---------- 5b. Games that are not out yet ----------
+echo "\nRelease day lock\n";
+if ($gta !== null && $gta['released'] === false) {
+    expect('reviewing a game before its release day is refused (403)',
+        call($a, 'POST', 'reviews.php', ['game_id' => 14, 'rating' => 5, 'comment' => 'Too early.']), 403,
+        fn ($j) => str_contains($j['message'], 'Reviews open on'));
+} else {
+    $early = expect('a released game accepts reviews', call($a, 'POST', 'reviews.php', ['game_id' => 14, 'rating' => 5, 'comment' => 'Out now.']), 201);
+    call($a, 'DELETE', 'reviews.php?id=' . ($early['review']['id'] ?? 0));
+}
+
+// ---------- 5c. Plans and profile pictures ----------
+echo "\nPlans and profile pictures\n";
+expect('new players start on the Standard plan', call($a, 'GET', 'session.php'), 200,
+    fn ($j) => $j['user']['plan'] === 'standard' && $j['user']['avatar'] === null);
+expect('a Standard picture can be chosen', call($a, 'PUT', 'account.php', ['avatar' => 'rocket']), 200,
+    fn ($j) => $j['user']['avatar'] === 'rocket');
+expect('a Gold picture is refused on Standard (403)', call($a, 'PUT', 'account.php', ['avatar' => 'dragon']), 403);
+expect('an unknown picture is 422', call($a, 'PUT', 'account.php', ['avatar' => 'not-a-picture']), 422);
+expect('an unknown plan is 422', call($a, 'PUT', 'account.php', ['plan' => 'platinum']), 422);
+expect('player A moves to Gold (demo, no payment)', call($a, 'PUT', 'account.php', ['plan' => 'gold']), 200,
+    fn ($j) => $j['user']['plan'] === 'gold');
+expect('a Gold picture works on Gold', call($a, 'PUT', 'account.php', ['avatar' => 'dragon']), 200,
+    fn ($j) => $j['user']['avatar'] === 'dragon');
+[, $mine] = call($a, 'GET', 'account.php');
+$reviewedId = $mine['reviews'][0]['game_id'] ?? null;
+if ($reviewedId === null) {
+    call($a, 'POST', 'reviews.php', ['game_id' => 3, 'rating' => 4, 'comment' => 'Badge test.']);
+    $reviewedId = 3;
+}
+expect('reviews show the author plan and picture', call($guest, 'GET', "reviews.php?game_id=$reviewedId"), 200,
+    fn ($j) => count(array_filter($j['reviews'], fn ($r) => $r['username'] === $userA['username'] && $r['plan'] === 'gold' && $r['avatar'] === 'dragon')) === 1);
+expect('moving back to Silver drops the Gold-only picture', call($a, 'PUT', 'account.php', ['plan' => 'silver']), 200,
+    fn ($j) => $j['user']['plan'] === 'silver' && $j['user']['avatar'] === null);
+expect('two changes in one request are refused (400)', call($a, 'PUT', 'account.php', ['plan' => 'gold', 'avatar' => 'rocket']), 400);
+expect('visitor cannot change plan (401)', call($guest, 'PUT', 'account.php', ['plan' => 'gold']), 401);
 
 // ---------- 6. Account page ----------
 echo "\nAccount\n";

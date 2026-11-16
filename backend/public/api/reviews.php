@@ -17,7 +17,7 @@ if ($method === 'GET') {
     if (isset($_GET['recent'])) {
         $limit = min(positive_int($_GET['recent']) ?? 6, 20);
         $stmt = db()->prepare(
-            'SELECT reviews.id, reviews.game_id, reviews.user_id, users.username, reviews.rating,
+            'SELECT reviews.id, reviews.game_id, reviews.user_id, users.username, users.plan, users.avatar, reviews.rating,
                     reviews.comment, reviews.created_at, games.title AS game_title, games.image AS game_image
              FROM reviews
              INNER JOIN users ON users.id = reviews.user_id
@@ -79,8 +79,15 @@ if ($method === 'POST') {
     }
     [$rating, $comment] = valid_review_input($data);
 
-    if (!game_exists($gameId)) {
+    $game = db()->prepare('SELECT release_text, release_date FROM games WHERE id = :id LIMIT 1');
+    $game->execute(['id' => $gameId]);
+    $game = $game->fetch();
+    if (!$game) {
         json_error('Game not found.', 404);
+    }
+    // Nobody can rate a game before it comes out (Grand Theft Auto VI until 19 November 2026).
+    if (!is_released($game['release_date'])) {
+        json_error('Reviews open on ' . $game['release_text'] . ', when the game comes out.', 403);
     }
 
     $insert = db()->prepare(

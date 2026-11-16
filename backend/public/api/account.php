@@ -3,6 +3,8 @@
 //   GET                                   -> the user's details and their own reviews
 //   PUT {username, email}                 -> update username and email
 //   PUT {current_password, new_password}  -> change the password
+//   PUT {plan}                            -> switch plan: standard, silver or gold (demo, no payment)
+//   PUT {avatar}                          -> choose a profile picture allowed by the plan (null = initials)
 require __DIR__ . '/../../includes/bootstrap.php';
 
 $method = require_method('GET', 'PUT');
@@ -45,12 +47,52 @@ $data = read_json_body();
 
 $changesPassword = array_key_exists('current_password', $data) || array_key_exists('new_password', $data);
 $changesDetails = array_key_exists('username', $data) || array_key_exists('email', $data);
+$changesPlan = array_key_exists('plan', $data);
+$changesAvatar = array_key_exists('avatar', $data);
 
-if ($changesPassword && $changesDetails) {
-    json_error('Update your details and your password separately.', 400);
+$changes = (int) $changesPassword + (int) $changesDetails + (int) $changesPlan + (int) $changesAvatar;
+if ($changes > 1) {
+    json_error('Update one part of your account at a time.', 400);
 }
-if (!$changesPassword && !$changesDetails) {
+if ($changes === 0) {
     json_error('Nothing to update.', 400);
+}
+
+// ---------- Plan (demo of the subscription model: no payment is taken) ----------
+if ($changesPlan) {
+    $plan = is_string($data['plan']) ? $data['plan'] : '';
+    if (!plan_exists($plan)) {
+        json_error('Choose the Standard, Silver or Gold plan.', 422);
+    }
+
+    // A picture from a higher plan goes back to the initials when the player moves down.
+    $avatar = $account['avatar'];
+    if ($avatar !== null && !avatar_allowed($avatar, $plan)) {
+        $avatar = null;
+    }
+
+    db()->prepare('UPDATE users SET plan = :plan, avatar = :avatar WHERE id = :id')
+        ->execute(['plan' => $plan, 'avatar' => $avatar, 'id' => $account['id']]);
+
+    $_SESSION['user'] = public_user(array_merge($account, ['plan' => $plan, 'avatar' => $avatar]));
+    json_response(['success' => true, 'message' => 'You are now on the ' . PLANS[$plan]['name'] . ' plan.', 'user' => current_user()]);
+}
+
+// ---------- Profile picture ----------
+if ($changesAvatar) {
+    $avatar = $data['avatar'];
+    if ($avatar !== null && (!is_string($avatar) || !avatar_exists($avatar))) {
+        json_error('Choose one of the DPRate profile pictures.', 422);
+    }
+    if ($avatar !== null && !avatar_allowed($avatar, $account['plan'])) {
+        json_error('This profile picture comes with a higher plan.', 403);
+    }
+
+    db()->prepare('UPDATE users SET avatar = :avatar WHERE id = :id')
+        ->execute(['avatar' => $avatar, 'id' => $account['id']]);
+
+    $_SESSION['user'] = public_user(array_merge($account, ['avatar' => $avatar]));
+    json_response(['success' => true, 'message' => 'Profile picture updated.', 'user' => current_user()]);
 }
 
 if ($changesPassword) {
@@ -112,6 +154,6 @@ try {
 }
 
 // The header and session.php show the new name straight away.
-$_SESSION['user'] = public_user(['id' => $account['id'], 'username' => $username, 'email' => $email]);
+$_SESSION['user'] = public_user(array_merge($account, ['username' => $username, 'email' => $email]));
 
 json_response(['success' => true, 'message' => 'Account details updated.', 'user' => current_user()]);

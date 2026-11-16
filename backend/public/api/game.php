@@ -1,5 +1,5 @@
 <?php
-// GET /api/game.php?id=2 -> one game with its live rating (Game Details page).
+// GET /api/game.php?id=2 -> one game with its live rating and store links (Game Details page).
 require __DIR__ . '/../../includes/bootstrap.php';
 
 require_method('GET');
@@ -17,4 +17,7 @@ if (!$row) {
     json_error('Game not found.', 404);
 }
 
-json_response(['success' => true, 'game' => format_game($row)]);
+$game = format_game($row);
+$game['stores'] = game_stores($game['id']);
+
+json_response(['success' => true, 'game' => $game]);

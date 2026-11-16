@@ -42,6 +42,8 @@ function public_user(array $row): array
         'id' => (int) $row['id'],
         'username' => $row['username'],
         'email' => $row['email'],
+        'plan' => $row['plan'] ?? 'standard',   // standard, silver or gold
+        'avatar' => $row['avatar'] ?? null,     // chosen profile picture, null = initials
     ];
 }
 
@@ -76,7 +78,7 @@ function log_in_user(array $row): void
 
 function find_user(int $id): ?array
 {
-    $stmt = db()->prepare('SELECT id, username, email, password_hash FROM users WHERE id = :id LIMIT 1');
+    $stmt = db()->prepare('SELECT id, username, email, password_hash, plan, avatar FROM users WHERE id = :id LIMIT 1');
     $stmt->execute(['id' => $id]);
     return $stmt->fetch() ?: null;
 }

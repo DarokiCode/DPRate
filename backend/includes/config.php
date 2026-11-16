@@ -12,6 +12,9 @@ $config = [
     'db_pass' => getenv('DB_PASS') ?: '',
     'db_charset' => 'utf8mb4',
 
+    // Time zone used to decide if a game is already out (reviews open on release day).
+    'timezone' => 'Australia/Sydney',
+
     // Websites allowed to send POST, PUT and DELETE requests, besides the site itself.
     // These two are the Vite development server used while coding.
     'allowed_origins' => ['http://localhost:5173', 'http://127.0.0.1:5173'],

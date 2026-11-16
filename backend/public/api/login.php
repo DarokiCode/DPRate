@@ -16,7 +16,7 @@ if ($login === '' || $password === '') {
 
 // Two different placeholder names, because PDO does not allow reusing one.
 $stmt = db()->prepare(
-    'SELECT id, username, email, password_hash FROM users
+    'SELECT id, username, email, password_hash, plan, avatar FROM users
      WHERE username = :login_username OR email = :login_email
      LIMIT 1'
 );

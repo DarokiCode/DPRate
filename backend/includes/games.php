@@ -13,11 +13,10 @@ const GAME_FROM = 'games
         GROUP BY game_id
     ) AS stats ON stats.game_id = games.id';
 
-// "release" is the name the React front end expects.
 const GAME_COLUMNS = 'games.id, games.title, genres.name AS genre,
     stats.avg_rating AS rating, COALESCE(stats.review_count, 0) AS review_count,
     games.image, games.banner, games.logo, games.tags, games.description, games.developer, games.publisher,
-    games.release_text AS `release`, games.platforms';
+    games.release_text, games.release_date, games.platforms, games.sponsored';
 
 // Turns one database row into the game object defined in the API contract.
 function format_game(array $row): array
@@ -35,9 +34,27 @@ function format_game(array $row): array
         'description' => $row['description'],
         'developer' => $row['developer'],
         'publisher' => $row['publisher'],
-        'release' => $row['release'],
+        'release' => substr($row['release_date'], 0, 4),  // year, shown on game cards
+        'release_label' => $row['release_text'],           // full date as written on the game page
+        'release_date' => $row['release_date'],            // YYYY-MM-DD, for sorting and the countdown
+        'released' => is_released($row['release_date']),   // false = coming soon, reviews closed
         'platforms' => $row['platforms'],
+        'sponsored' => (bool) $row['sponsored'],           // paid spot on the home page (demo)
     ];
+}
+
+// A game is out from the start of its release day, Australian time.
+function is_released(string $releaseDate): bool
+{
+    return $releaseDate <= date('Y-m-d');
+}
+
+// Official store pages for "Where to buy" on the game page.
+function game_stores(int $gameId): array
+{
+    $stmt = db()->prepare('SELECT store, url FROM game_stores WHERE game_id = :id ORDER BY position, id');
+    $stmt->execute(['id' => $gameId]);
+    return $stmt->fetchAll();
 }
 
 function game_exists(int $id): bool
@@ -49,7 +66,7 @@ function game_exists(int $id): bool
 
 // Reviews always come with the author's username (never the email or the password hash).
 const REVIEW_SELECT = 'SELECT reviews.id, reviews.game_id, reviews.user_id, users.username,
-    reviews.rating, reviews.comment, reviews.created_at
+    users.plan, users.avatar, reviews.rating, reviews.comment, reviews.created_at
     FROM reviews
     INNER JOIN users ON users.id = reviews.user_id';
 
@@ -60,6 +77,8 @@ function format_review(array $row): array
         'game_id' => (int) $row['game_id'],
         'user_id' => (int) $row['user_id'],
         'username' => $row['username'],
+        'plan' => $row['plan'],       // shows the Silver or Gold badge
+        'avatar' => $row['avatar'],   // author's profile picture
         'rating' => (int) $row['rating'],
         'comment' => $row['comment'],
         'created_at' => $row['created_at'],
