@@ -158,8 +158,3 @@ Descriptions were written by the team. Artwork is the official store artwork (St
 Grand Theft Auto VI), loaded from the publishers' servers (not copied into this repository) and shown for review
 purposes. All game names, artwork and logos belong to their publishers. The League of Legends and Valorant
 images and the DPRate logo come from the team's Assessment 1 and 2 work.
-
-## AI assistance
-
-Parts of the code and documentation were written with the help of AI assistants (ChatGPT and Claude) and
-reviewed, tested and adjusted by the team, as declared in the report.
